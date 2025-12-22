@@ -3,10 +3,15 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { TrendingUp, Activity, Zap } from "lucide-react";
+import { TrendingUp, Activity, Zap, Crown, Star } from "lucide-react";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
-  const { data: user, isLoading } = useUser();
+  const { data: user, isLoading, refetch } = useUser();
+  const { toast } = useToast();
+  const [selectedMembership, setSelectedMembership] = useState<string>(user?.membership || "free");
+  const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
 
   if (isLoading) {
     return (
@@ -21,6 +26,42 @@ export default function Home() {
     { label: "Network Hash", value: "450 TH", icon: Activity, color: "text-purple-400" },
     { label: "Total Mined", value: "8.4M", icon: TrendingUp, color: "text-emerald-400" },
   ];
+
+  const memberships = [
+    { id: "free", name: "Free", bonus: 0, color: "from-gray-500 to-gray-600", icon: null },
+    { id: "vip", name: "VIP", bonus: 50, color: "from-blue-500 to-cyan-500", icon: Star },
+    { id: "silver", name: "Silver", bonus: 75, color: "from-slate-400 to-slate-500", icon: Star },
+    { id: "gold", name: "Gold", bonus: 100, color: "from-yellow-500 to-orange-500", icon: Crown },
+    { id: "platinum", name: "Platinum", bonus: 150, color: "from-purple-500 to-pink-500", icon: Crown },
+  ];
+
+  const handleMembershipUpdate = async (membershipId: string) => {
+    setIsUpdatingMembership(true);
+    try {
+      const res = await fetch(`/api/membership/${membershipId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) throw new Error("Failed to update membership");
+      
+      setSelectedMembership(membershipId);
+      refetch();
+      const membership = memberships.find(m => m.id === membershipId);
+      toast({
+        title: "Membership Updated!",
+        description: `You are now a ${membership?.name} member with +${membership?.bonus}% bonus.`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update membership",
+      });
+    } finally {
+      setIsUpdatingMembership(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground overflow-hidden relative">
@@ -87,6 +128,45 @@ export default function Home() {
               </div>
             </motion.div>
           ))}
+        </div>
+
+        {/* Membership Section */}
+        <h2 className="text-lg mb-4 text-white mt-8">Choose Your Membership</h2>
+        <p className="text-sm text-muted-foreground mb-4">Boost your mining earnings with premium memberships</p>
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {memberships.map((membership) => {
+            const Icon = membership.icon;
+            const isSelected = selectedMembership === membership.id;
+            return (
+              <motion.div
+                key={membership.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ scale: 1.05 }}
+              >
+                <button
+                  onClick={() => handleMembershipUpdate(membership.id)}
+                  disabled={isUpdatingMembership}
+                  className={`w-full p-4 rounded-xl transition-all ${
+                    isSelected
+                      ? "ring-2 ring-primary"
+                      : ""
+                  } ${
+                    membership.id === "free"
+                      ? "glass-panel"
+                      : `glass-panel bg-gradient-to-br ${membership.color} opacity-80 hover:opacity-100`
+                  } disabled:opacity-50`}
+                  data-testid={`button-membership-${membership.id}`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    {Icon && <Icon className="w-5 h-5" />}
+                    <h3 className="font-bold text-white text-sm">{membership.name}</h3>
+                    <p className="text-xs text-white/80">+{membership.bonus}%</p>
+                  </div>
+                </button>
+              </motion.div>
+            );
+          })}
         </div>
 
         {/* Recent Activity / Games Teaser */}

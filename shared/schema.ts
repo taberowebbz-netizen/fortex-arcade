@@ -7,6 +7,7 @@ export const users = pgTable("users", {
   worldId: text("world_id").unique(), // From MiniKit
   username: text("username"),
   minedBalance: integer("mined_balance").default(0),
+  membership: text("membership").default("free"), // free, vip, silver, gold, platinum
   lastMineTime: timestamp("last_mine_time").defaultNow(),
   nextMineTime: timestamp("next_mine_time").defaultNow(), // 24h cooldown
 });

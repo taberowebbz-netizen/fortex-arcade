@@ -6,6 +6,7 @@ export interface IStorage {
   getUserByWorldId(worldId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateBalance(userId: number, amount: number): Promise<User>;
+  updateMembership(userId: number, membership: string): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -28,6 +29,15 @@ export class DatabaseStorage implements IStorage {
         lastMineTime: new Date(),
         nextMineTime
       })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async updateMembership(userId: number, membership: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ membership })
       .where(eq(users.id, userId))
       .returning();
     return user;
