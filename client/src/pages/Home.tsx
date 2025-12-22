@@ -29,36 +29,7 @@ export default function Home() {
     duration: number;
     startTime: Date;
     apy: number;
-  }>>([
-    {
-      id: "stake-1",
-      amount: 500,
-      duration: 1,
-      startTime: new Date(Date.now() - 15 * 60 * 60 * 1000), // Started 15 hours ago
-      apy: 150,
-    },
-    {
-      id: "stake-2",
-      amount: 300,
-      duration: 1,
-      startTime: new Date(Date.now() - 5 * 60 * 60 * 1000), // Started 5 hours ago
-      apy: 100,
-    },
-    {
-      id: "stake-3",
-      amount: 200,
-      duration: 1,
-      startTime: new Date(Date.now() - 1 * 60 * 60 * 1000), // Started 1 hour ago
-      apy: 75,
-    },
-    {
-      id: "stake-4",
-      amount: 150,
-      duration: 1,
-      startTime: new Date(Date.now() - 30 * 60 * 1000), // Started 30 minutes ago
-      apy: 50,
-    },
-  ]);
+  }>>([]);
   const [, setUpdateTrigger] = useState({});
 
   const mockWalletAddress = "0x" + user?.worldId?.substring(0, 40) || "0x1234567890abcdef";
@@ -84,6 +55,34 @@ export default function Home() {
     const totalSeconds = stake.duration * 24 * 60 * 60;
     const remainingSeconds = Math.max(0, totalSeconds - secondsElapsed);
     return Math.ceil(remainingSeconds / (24 * 60 * 60));
+  };
+
+  const getMembershipStake = () => {
+    const apyMap: { [key: string]: number } = {
+      "vip": 50,
+      "silver": 75,
+      "gold": 100,
+      "platinum": 150,
+    };
+
+    const amountMap: { [key: string]: number } = {
+      "vip": 100,
+      "silver": 200,
+      "gold": 300,
+      "platinum": 500,
+    };
+
+    if (!selectedMembership || selectedMembership === "free") {
+      return null;
+    }
+
+    return {
+      id: `stake-${selectedMembership}`,
+      amount: amountMap[selectedMembership] || 100,
+      duration: 1,
+      startTime: new Date(Date.now() - 5 * 60 * 60 * 1000), // Started 5 hours ago
+      apy: apyMap[selectedMembership] || 50,
+    };
   };
 
   if (isLoading) {
@@ -341,52 +340,46 @@ export default function Home() {
         </div>
 
         {/* Active Stakes Section */}
-        {activeStakes.length > 0 && (
+        {getMembershipStake() && (
           <div className="mb-8">
-            <h2 className="text-lg font-bold mb-4 text-white">Active Stakes</h2>
-            <div className="space-y-3">
-              {activeStakes.map((stake, index) => (
-                <motion.div
-                  key={stake.id}
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="glass-panel p-4 rounded-2xl border border-primary/30 hover:border-primary/50 transition-colors"
-                  data-testid={`card-stake-${stake.id}`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Lock size={16} className="text-primary" />
-                        <span className="font-bold text-white">{stake.amount} FORTEX</span>
-                        <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">{stake.apy}% APY</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        {getDaysRemaining(stake)} days remaining
-                      </p>
-                      
-                      {/* Real-time Rewards */}
-                      <div className="bg-white/5 rounded-lg p-3 border border-white/10">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs text-muted-foreground">Earned Rewards</span>
-                          <span className="text-sm font-bold text-emerald-400">
-                            +{getStakeRewards(stake).toFixed(6)} FORTEX
-                          </span>
-                        </div>
-                        <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
-                          <div 
-                            className="bg-gradient-to-r from-primary to-emerald-400 h-full transition-all duration-1000"
-                            style={{
-                              width: `${Math.min(100, (((Date.now() - stake.startTime.getTime()) / 1000) / (stake.duration * 24 * 60 * 60)) * 100)}%`
-                            }}
-                          />
-                        </div>
-                      </div>
+            <h2 className="text-lg font-bold mb-4 text-white">Your Staking</h2>
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="glass-panel p-4 rounded-2xl border border-primary/30 hover:border-primary/50 transition-colors"
+              data-testid={`card-stake-membership`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lock size={16} className="text-primary" />
+                    <span className="font-bold text-white">{getMembershipStake()?.amount} FORTEX</span>
+                    <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">{getMembershipStake()?.apy}% APY</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {getMembershipStake() && getDaysRemaining(getMembershipStake())} days remaining
+                  </p>
+                  
+                  {/* Real-time Rewards */}
+                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">Earned Rewards</span>
+                      <span className="text-sm font-bold text-emerald-400">
+                        +{getMembershipStake() && getStakeRewards(getMembershipStake()).toFixed(6)} FORTEX
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-primary to-emerald-400 h-full transition-all duration-1000"
+                        style={{
+                          width: `${getMembershipStake() ? Math.min(100, (((Date.now() - getMembershipStake().startTime.getTime()) / 1000) / (getMembershipStake().duration * 24 * 60 * 60)) * 100) : 0}%`
+                        }}
+                      />
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
 
