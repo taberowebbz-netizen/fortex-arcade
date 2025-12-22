@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { TrendingUp, Activity, Zap, Crown, Star, X } from "lucide-react";
+import { TrendingUp, Activity, Zap, Crown, Star, X, Wallet as WalletIcon, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,6 +15,11 @@ export default function Home() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState("");
   const [isDepositing, setIsDepositing] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [walletCopied, setWalletCopied] = useState(false);
+
+  const mockWalletAddress = "0x" + user?.worldId?.substring(0, 40) || "0x1234567890abcdef";
+  const mockWalletBalance = 250.5;
 
   if (isLoading) {
     return (
@@ -90,6 +95,16 @@ export default function Home() {
     }, 1500);
   };
 
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText(mockWalletAddress);
+    setWalletCopied(true);
+    setTimeout(() => setWalletCopied(false), 2000);
+    toast({
+      title: "Copied!",
+      description: "Wallet address copied to clipboard",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground overflow-hidden relative">
       {/* Ambient background effects */}
@@ -104,9 +119,20 @@ export default function Home() {
             </h1>
             <p className="text-muted-foreground text-sm">Welcome back, {user?.username || "Miner"}</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px]">
-            <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-xs font-bold">
-              {(user?.username?.[0] || "U").toUpperCase()}
+          <div className="flex items-center gap-2">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="text-primary hover:bg-primary/10"
+              onClick={() => setShowWalletModal(true)}
+              data-testid="button-wallet"
+            >
+              <WalletIcon size={20} />
+            </Button>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px]">
+              <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-xs font-bold">
+                {(user?.username?.[0] || "U").toUpperCase()}
+              </div>
             </div>
           </div>
         </div>
@@ -161,6 +187,84 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+
+        {/* Wallet Modal */}
+        {showWalletModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-xl font-bold">Wallet</h2>
+                <button 
+                  onClick={() => setShowWalletModal(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  data-testid="button-close-wallet"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                {/* Wallet Balance */}
+                <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                  <p className="text-xs text-muted-foreground mb-1">Wallet Balance</p>
+                  <p className="text-2xl font-bold text-white">{mockWalletBalance} WLD</p>
+                </div>
+
+                {/* Wallet Address */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Wallet Address</p>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={mockWalletAddress}
+                      readOnly
+                      className="flex-1 bg-background border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none cursor-not-allowed"
+                      data-testid="input-wallet-address"
+                    />
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={handleCopyAddress}
+                      data-testid="button-copy-address"
+                    >
+                      {walletCopied ? <Check size={16} /> : <Copy size={16} />}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Transactions Summary */}
+                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                  <p className="text-xs text-muted-foreground mb-3">Activity</p>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Deposits:</span>
+                      <span className="text-white font-semibold">500 WLD</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total Withdrawals:</span>
+                      <span className="text-white font-semibold">249.5 WLD</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-white/10">
+                      <span className="text-muted-foreground">Current Balance:</span>
+                      <span className="text-primary font-semibold">{mockWalletBalance} WLD</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowWalletModal(false)}
+                  data-testid="button-wallet-close"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Deposit Modal */}
         {showDepositModal && (
