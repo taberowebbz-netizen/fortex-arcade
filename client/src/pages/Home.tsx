@@ -348,25 +348,6 @@ export default function Home() {
           </div>
         </motion.div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {stats.map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: i * 0.1 }}
-              className="glass-panel p-4 rounded-2xl flex flex-col items-center justify-center text-center gap-2"
-            >
-              <stat.icon className={`w-5 h-5 ${stat.color}`} />
-              <div>
-                <div className="text-lg font-bold font-display">{stat.value}</div>
-                <div className="text-[10px] text-muted-foreground uppercase">{stat.label}</div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
         {/* Active Stakes Section */}
         {getMembershipStake() && (
           <div className="mb-8">
