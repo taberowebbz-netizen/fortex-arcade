@@ -1,7 +1,7 @@
 import { BottomNav } from "@/components/BottomNav";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { MousePointer2, Grid3X3, Trophy } from "lucide-react";
+import { MousePointer2, Grid3X3, Trophy, Disc, Dice5, CircleDot } from "lucide-react";
 
 const games = [
   {
@@ -19,6 +19,30 @@ const games = [
     icon: Grid3X3,
     color: "from-purple-500 to-pink-600",
     href: "/games/memory"
+  },
+  {
+    id: "spinwheel",
+    title: "Spin Wheel",
+    description: "Spin the lucky wheel and win up to 100x tokens!",
+    icon: Disc,
+    color: "from-yellow-500 to-orange-600",
+    href: "/games/spinwheel"
+  },
+  {
+    id: "dice",
+    title: "Dice Roll",
+    description: "Roll the dice and predict the outcome to win big.",
+    icon: Dice5,
+    color: "from-green-500 to-emerald-600",
+    href: "/games/dice"
+  },
+  {
+    id: "coinflip",
+    title: "Coin Flip",
+    description: "Heads or tails? Double your tokens with a lucky flip.",
+    icon: CircleDot,
+    color: "from-amber-500 to-yellow-600",
+    href: "/games/coinflip"
   }
 ];
 

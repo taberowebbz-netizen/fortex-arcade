@@ -12,6 +12,9 @@ import Games from "@/pages/Games";
 import Profile from "@/pages/Profile";
 import ClickerGame from "@/pages/games/Clicker";
 import MemoryGame from "@/pages/games/Memory";
+import SpinWheelGame from "@/pages/games/SpinWheel";
+import DiceGame from "@/pages/games/Dice";
+import CoinFlipGame from "@/pages/games/CoinFlip";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
@@ -56,6 +59,15 @@ function Router() {
       </Route>
       <Route path="/games/memory">
         <ProtectedRoute component={MemoryGame} />
+      </Route>
+      <Route path="/games/spinwheel">
+        <ProtectedRoute component={SpinWheelGame} />
+      </Route>
+      <Route path="/games/dice">
+        <ProtectedRoute component={DiceGame} />
+      </Route>
+      <Route path="/games/coinflip">
+        <ProtectedRoute component={CoinFlipGame} />
       </Route>
       <Route path="/profile">
         <ProtectedRoute component={Profile} />
