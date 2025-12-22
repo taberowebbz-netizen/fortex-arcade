@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { TrendingUp, Activity, Zap, Crown, Star } from "lucide-react";
+import { TrendingUp, Activity, Zap, Crown, Star, X } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,6 +12,9 @@ export default function Home() {
   const { toast } = useToast();
   const [selectedMembership, setSelectedMembership] = useState<string>(user?.membership || "free");
   const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [isDepositing, setIsDepositing] = useState(false);
 
   if (isLoading) {
     return (
@@ -63,6 +66,30 @@ export default function Home() {
     }
   };
 
+  const handleDeposit = () => {
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid amount",
+      });
+      return;
+    }
+
+    setIsDepositing(true);
+    setTimeout(() => {
+      setIsDepositing(false);
+      setShowDepositModal(false);
+      setDepositAmount("");
+      toast({
+        title: "Deposit Initiated",
+        description: `${amount} WLD deposit has been initiated. It will be reflected in your balance shortly.`,
+      });
+      refetch();
+    }, 1500);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground overflow-hidden relative">
       {/* Ambient background effects */}
@@ -104,7 +131,12 @@ export default function Home() {
               <Link href="/mine" className="flex-1">
                 <Button className="w-full bg-white text-black hover:bg-gray-200">Start Mining</Button>
               </Link>
-              <Button variant="outline" className="flex-1 border-white/20 text-white hover:bg-white/10">
+              <Button 
+                variant="outline" 
+                className="flex-1 border-white/20 text-white hover:bg-white/10"
+                onClick={() => setShowDepositModal(true)}
+                data-testid="button-deposit"
+              >
                 Deposit
               </Button>
             </div>
@@ -129,6 +161,63 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+
+        {/* Deposit Modal */}
+        {showDepositModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-xl font-bold">Deposit WLD</h2>
+                <button 
+                  onClick={() => setShowDepositModal(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  data-testid="button-close-deposit"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                {/* Amount */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Deposit (WLD)</label>
+                  <input 
+                    type="number" 
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white placeholder-muted-foreground focus:outline-none focus:border-primary/50"
+                    placeholder="0"
+                    data-testid="input-deposit-amount"
+                  />
+                </div>
+
+                {/* Info */}
+                <div className="p-3 bg-primary/10 rounded-lg text-xs text-primary/80 border border-primary/20">
+                  <p>Deposits use your World Chain wallet. Funds will appear instantly after confirmation.</p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowDepositModal(false)}
+                  data-testid="button-deposit-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-primary hover:bg-primary/90"
+                  onClick={handleDeposit}
+                  disabled={isDepositing || !depositAmount.trim()}
+                  data-testid="button-confirm-deposit"
+                >
+                  {isDepositing ? "Processing..." : "Confirm"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Membership Section */}
         <h2 className="text-lg mb-4 text-white mt-8">Choose Your Membership</h2>
