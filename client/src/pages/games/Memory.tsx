@@ -3,21 +3,92 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useClaimMining } from "@/hooks/use-mining";
 import { motion } from "framer-motion";
-import { ArrowLeft, Brain } from "lucide-react";
+import { ArrowLeft, Brain, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const ICONS = ["💎", "⚡", "🔮", "🧬", "⛓️", "🛡️"];
+const ICONS = ["A", "B", "C", "D", "E", "F"];
+const MAX_PLAYS = 3;
+const COOLDOWN_HOURS = 12;
+const GAME_KEY = "memory_game_data";
+
+function getGameData() {
+  const data = localStorage.getItem(GAME_KEY);
+  if (!data) return { playsLeft: MAX_PLAYS, lastReset: Date.now() };
+  return JSON.parse(data);
+}
+
+function saveGameData(playsLeft: number, lastReset: number) {
+  localStorage.setItem(GAME_KEY, JSON.stringify({ playsLeft, lastReset }));
+}
 
 export default function MemoryGame() {
   const [cards, setCards] = useState<{id: number, icon: string, flipped: boolean, matched: boolean}[]>([]);
   const [flipped, setFlipped] = useState<number[]>([]);
   const [matches, setMatches] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
+  const [playsLeft, setPlaysLeft] = useState(MAX_PLAYS);
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
   const { mutate: claim } = useClaimMining();
   const { toast } = useToast();
 
+  useEffect(() => {
+    const data = getGameData();
+    const timeSinceReset = Date.now() - data.lastReset;
+    const cooldownMs = COOLDOWN_HOURS * 60 * 60 * 1000;
+    
+    if (timeSinceReset >= cooldownMs) {
+      setPlaysLeft(MAX_PLAYS);
+      saveGameData(MAX_PLAYS, Date.now());
+      setCooldownEnd(null);
+    } else if (data.playsLeft <= 0) {
+      setPlaysLeft(0);
+      setCooldownEnd(data.lastReset + cooldownMs);
+    } else {
+      setPlaysLeft(data.playsLeft);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (cooldownEnd) {
+      const interval = setInterval(() => {
+        if (Date.now() >= cooldownEnd) {
+          setPlaysLeft(MAX_PLAYS);
+          saveGameData(MAX_PLAYS, Date.now());
+          setCooldownEnd(null);
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [cooldownEnd]);
+
+  const formatTimeLeft = () => {
+    if (!cooldownEnd) return "";
+    const ms = cooldownEnd - Date.now();
+    if (ms <= 0) return "";
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
   const initializeGame = () => {
+    if (playsLeft <= 0) {
+      toast({
+        variant: "destructive",
+        title: "No plays left!",
+        description: `Wait ${formatTimeLeft()} to play again.`,
+      });
+      return;
+    }
+    
+    const newPlaysLeft = playsLeft - 1;
+    setPlaysLeft(newPlaysLeft);
+    const data = getGameData();
+    saveGameData(newPlaysLeft, newPlaysLeft === 0 ? Date.now() : data.lastReset);
+    if (newPlaysLeft === 0) {
+      setCooldownEnd(Date.now() + COOLDOWN_HOURS * 60 * 60 * 1000);
+    }
+    
     const shuffled = [...ICONS, ...ICONS]
       .sort(() => Math.random() - 0.5)
       .map((icon, index) => ({
@@ -86,12 +157,27 @@ export default function MemoryGame() {
       <div className="text-center mb-8 mt-12">
         <h1 className="text-3xl font-display font-bold mb-2">Memory Matrix</h1>
         <p className="text-muted-foreground">Match symbols to decrypt.</p>
+        <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+          <span className="text-muted-foreground">Plays left:</span>
+          <span className={`font-bold ${playsLeft > 0 ? "text-green-400" : "text-red-400"}`}>{playsLeft}/{MAX_PLAYS}</span>
+          {cooldownEnd && (
+            <span className="flex items-center gap-1 text-yellow-400">
+              <Clock size={14} />
+              {formatTimeLeft()}
+            </span>
+          )}
+        </div>
       </div>
 
       {!gameStarted ? (
         <div className="flex-1 flex items-center justify-center">
-          <Button onClick={initializeGame} size="lg" className="bg-purple-600 hover:bg-purple-700 h-16 px-8 text-xl">
-            <Brain className="mr-2" /> Start Decryption
+          <Button 
+            onClick={initializeGame} 
+            size="lg" 
+            disabled={playsLeft <= 0}
+            className="bg-purple-600 hover:bg-purple-700 h-16 px-8 text-xl"
+          >
+            <Brain className="mr-2" /> {playsLeft <= 0 ? `Wait ${formatTimeLeft()}` : "Start Decryption"}
           </Button>
         </div>
       ) : (

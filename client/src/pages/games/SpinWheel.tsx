@@ -1,10 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useClaimMining } from "@/hooks/use-mining";
 import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const MAX_PLAYS = 3;
+const COOLDOWN_HOURS = 12;
+const GAME_KEY = "spinwheel_game_data";
+
+function getGameData() {
+  const data = localStorage.getItem(GAME_KEY);
+  if (!data) return { playsLeft: MAX_PLAYS, lastReset: Date.now() };
+  return JSON.parse(data);
+}
+
+function saveGameData(playsLeft: number, lastReset: number) {
+  localStorage.setItem(GAME_KEY, JSON.stringify({ playsLeft, lastReset }));
+}
 
 const prizes = [
   { value: 1, label: "1x", color: "#ef4444" },
@@ -21,12 +35,70 @@ export default function SpinWheelGame() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [result, setResult] = useState<number | null>(null);
+  const [playsLeft, setPlaysLeft] = useState(MAX_PLAYS);
+  const [cooldownEnd, setCooldownEnd] = useState<number | null>(null);
   const { mutate: claim } = useClaimMining();
   const { toast } = useToast();
   const betAmount = 10;
 
+  useEffect(() => {
+    const data = getGameData();
+    const timeSinceReset = Date.now() - data.lastReset;
+    const cooldownMs = COOLDOWN_HOURS * 60 * 60 * 1000;
+    
+    if (timeSinceReset >= cooldownMs) {
+      setPlaysLeft(MAX_PLAYS);
+      saveGameData(MAX_PLAYS, Date.now());
+      setCooldownEnd(null);
+    } else if (data.playsLeft <= 0) {
+      setPlaysLeft(0);
+      setCooldownEnd(data.lastReset + cooldownMs);
+    } else {
+      setPlaysLeft(data.playsLeft);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (cooldownEnd) {
+      const interval = setInterval(() => {
+        if (Date.now() >= cooldownEnd) {
+          setPlaysLeft(MAX_PLAYS);
+          saveGameData(MAX_PLAYS, Date.now());
+          setCooldownEnd(null);
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [cooldownEnd]);
+
+  const formatTimeLeft = () => {
+    if (!cooldownEnd) return "";
+    const ms = cooldownEnd - Date.now();
+    if (ms <= 0) return "";
+    const hours = Math.floor(ms / (1000 * 60 * 60));
+    const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}m`;
+  };
+
   const spin = () => {
     if (isSpinning) return;
+    
+    if (playsLeft <= 0) {
+      toast({
+        variant: "destructive",
+        title: "No plays left!",
+        description: `Wait ${formatTimeLeft()} to play again.`,
+      });
+      return;
+    }
+    
+    const newPlaysLeft = playsLeft - 1;
+    setPlaysLeft(newPlaysLeft);
+    const data = getGameData();
+    saveGameData(newPlaysLeft, newPlaysLeft === 0 ? Date.now() : data.lastReset);
+    if (newPlaysLeft === 0) {
+      setCooldownEnd(Date.now() + COOLDOWN_HOURS * 60 * 60 * 1000);
+    }
     
     setIsSpinning(true);
     setResult(null);
@@ -66,6 +138,16 @@ export default function SpinWheelGame() {
       <div className="text-center mb-8 relative z-10">
         <h1 className="text-3xl font-display font-bold mb-2">Spin Wheel</h1>
         <p className="text-muted-foreground">Spin to win up to 50x!</p>
+        <div className="mt-4 flex items-center justify-center gap-2 text-sm">
+          <span className="text-muted-foreground">Plays left:</span>
+          <span className={`font-bold ${playsLeft > 0 ? "text-green-400" : "text-red-400"}`}>{playsLeft}/{MAX_PLAYS}</span>
+          {cooldownEnd && (
+            <span className="flex items-center gap-1 text-yellow-400">
+              <Clock size={14} />
+              {formatTimeLeft()}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="relative w-72 h-72 mb-8">
@@ -126,11 +208,11 @@ export default function SpinWheelGame() {
       <Button
         size="lg"
         onClick={spin}
-        disabled={isSpinning}
+        disabled={isSpinning || playsLeft <= 0}
         className="h-14 px-8 text-lg font-bold rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-600"
         data-testid="button-spin"
       >
-        {isSpinning ? "Spinning..." : `Spin (${betAmount} FTX)`}
+        {playsLeft <= 0 ? `Wait ${formatTimeLeft()}` : isSpinning ? "Spinning..." : `Spin (${betAmount} FTX)`}
       </Button>
     </div>
   );
