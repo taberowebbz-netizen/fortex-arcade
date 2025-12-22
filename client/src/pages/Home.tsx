@@ -297,29 +297,9 @@ export default function Home() {
             </h1>
             <p className="text-muted-foreground text-sm">Welcome back, {user?.username || "Miner"}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="text-primary hover:bg-primary/10"
-              onClick={() => setShowStakingModal(true)}
-              data-testid="button-staking"
-            >
-              <Lock size={20} />
-            </Button>
-            <Button 
-              size="icon" 
-              variant="ghost" 
-              className="text-primary hover:bg-primary/10"
-              onClick={() => setShowWalletModal(true)}
-              data-testid="button-wallet"
-            >
-              <WalletIcon size={20} />
-            </Button>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px]">
-              <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-xs font-bold">
-                {(user?.username?.[0] || "U").toUpperCase()}
-              </div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px]">
+            <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-xs font-bold">
+              {(user?.username?.[0] || "U").toUpperCase()}
             </div>
           </div>
         </div>
