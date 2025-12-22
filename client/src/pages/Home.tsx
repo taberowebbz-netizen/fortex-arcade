@@ -21,6 +21,8 @@ export default function Home() {
   const [stakingAmount, setStakingAmount] = useState("");
   const [stakingDuration, setStakingDuration] = useState("30");
   const [isStaking, setIsStaking] = useState(false);
+  const [selectedMembershipToPay, setSelectedMembershipToPay] = useState<string | null>(null);
+  const [isPayingMembership, setIsPayingMembership] = useState(false);
 
   const mockWalletAddress = "0x" + user?.worldId?.substring(0, 40) || "0x1234567890abcdef";
   const mockWalletBalance = 250.5;
@@ -48,21 +50,44 @@ export default function Home() {
   ];
 
   const handleMembershipUpdate = async (membershipId: string) => {
-    setIsUpdatingMembership(true);
+    const membership = memberships.find(m => m.id === membershipId);
+    
+    // Show payment modal to complete the purchase
+    setSelectedMembershipToPay(membershipId);
+    setShowWalletModal(true);
+  };
+
+  const handleConfirmMembershipPayment = async () => {
+    if (!selectedMembershipToPay) return;
+
+    const membership = memberships.find(m => m.id === selectedMembershipToPay);
+    if (!membership) return;
+
+    if (mockWalletBalance < membership.price) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Balance",
+        description: `You need ${membership.price} WLD. You have ${mockWalletBalance} WLD.`,
+      });
+      return;
+    }
+
+    setIsPayingMembership(true);
     try {
-      const res = await fetch(`/api/membership/${membershipId}`, {
+      const res = await fetch(`/api/membership/${selectedMembershipToPay}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
 
       if (!res.ok) throw new Error("Failed to update membership");
       
-      setSelectedMembership(membershipId);
+      setSelectedMembership(selectedMembershipToPay);
       refetch();
-      const membership = memberships.find(m => m.id === membershipId);
+      setShowWalletModal(false);
+      setSelectedMembershipToPay(null);
       toast({
         title: "Membership Updated!",
-        description: `You are now a ${membership?.name} member with +${membership?.bonus}% bonus.`,
+        description: `You are now a ${membership?.name} member with +${membership?.bonus}% bonus. Payment of ${membership.price} WLD processed.`,
       });
     } catch (error) {
       toast({
@@ -71,7 +96,7 @@ export default function Home() {
         description: "Failed to update membership",
       });
     } finally {
-      setIsUpdatingMembership(false);
+      setIsPayingMembership(false);
     }
   };
 
@@ -320,7 +345,7 @@ export default function Home() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
               <div className="flex items-center justify-between p-6 border-b border-white/10">
-                <h2 className="text-xl font-bold">Wallet</h2>
+                <h2 className="text-xl font-bold">{selectedMembershipToPay ? "Confirm Payment" : "Wallet"}</h2>
                 <button 
                   onClick={() => setShowWalletModal(false)}
                   className="p-1 hover:bg-white/10 rounded-lg transition-colors"
@@ -331,62 +356,103 @@ export default function Home() {
               </div>
               
               <div className="p-6 space-y-4">
-                {/* Wallet Balance */}
-                <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
-                  <p className="text-xs text-muted-foreground mb-1">Wallet Balance</p>
-                  <p className="text-2xl font-bold text-white">{mockWalletBalance} WLD</p>
-                </div>
+                {selectedMembershipToPay && memberships.find(m => m.id === selectedMembershipToPay) ? (
+                  <>
+                    {/* Membership Payment Info */}
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <p className="text-xs text-muted-foreground mb-1">Membership Selected</p>
+                      <p className="text-lg font-bold text-white">{memberships.find(m => m.id === selectedMembershipToPay)?.name}</p>
+                    </div>
 
-                {/* Wallet Address */}
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">Wallet Address</p>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      value={mockWalletAddress}
-                      readOnly
-                      className="flex-1 bg-background border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none cursor-not-allowed"
-                      data-testid="input-wallet-address"
-                    />
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={handleCopyAddress}
-                      data-testid="button-copy-address"
-                    >
-                      {walletCopied ? <Check size={16} /> : <Copy size={16} />}
-                    </Button>
-                  </div>
-                </div>
+                    {/* Payment Amount */}
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <p className="text-xs text-muted-foreground mb-1">Payment Amount</p>
+                      <p className="text-2xl font-bold text-white">{memberships.find(m => m.id === selectedMembershipToPay)?.price} WLD</p>
+                    </div>
 
-                {/* Transactions Summary */}
-                <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-                  <p className="text-xs text-muted-foreground mb-3">Activity</p>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Deposits:</span>
-                      <span className="text-white font-semibold">500 WLD</span>
+                    {/* Available Balance */}
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <p className="text-xs text-muted-foreground mb-1">Your Balance</p>
+                      <p className="text-xl font-bold text-white">{mockWalletBalance} WLD</p>
+                      {mockWalletBalance < (memberships.find(m => m.id === selectedMembershipToPay)?.price || 0) && (
+                        <p className="text-xs text-red-400 mt-2">Insufficient balance. Deposit more WLD.</p>
+                      )}
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Withdrawals:</span>
-                      <span className="text-white font-semibold">249.5 WLD</span>
+                  </>
+                ) : (
+                  <>
+                    {/* Wallet Balance */}
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <p className="text-xs text-muted-foreground mb-1">Wallet Balance</p>
+                      <p className="text-2xl font-bold text-white">{mockWalletBalance} WLD</p>
                     </div>
-                    <div className="flex justify-between pt-2 border-t border-white/10">
-                      <span className="text-muted-foreground">Current Balance:</span>
-                      <span className="text-primary font-semibold">{mockWalletBalance} WLD</span>
+
+                    {/* Wallet Address */}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Wallet Address</p>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={mockWalletAddress}
+                          readOnly
+                          className="flex-1 bg-background border border-white/10 rounded-lg px-3 py-2 text-white text-xs font-mono focus:outline-none cursor-not-allowed"
+                          data-testid="input-wallet-address"
+                        />
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={handleCopyAddress}
+                          data-testid="button-copy-address"
+                        >
+                          {walletCopied ? <Check size={16} /> : <Copy size={16} />}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </div>
+
+                    {/* Transactions Summary */}
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <p className="text-xs text-muted-foreground mb-3">Activity</p>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Total Deposits:</span>
+                          <span className="text-white font-semibold">500 WLD</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Total Withdrawals:</span>
+                          <span className="text-white font-semibold">249.5 WLD</span>
+                        </div>
+                        <div className="flex justify-between pt-2 border-t border-white/10">
+                          <span className="text-muted-foreground">Current Balance:</span>
+                          <span className="text-primary font-semibold">{mockWalletBalance} WLD</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="p-6 border-t border-white/10 flex gap-2">
                 <Button
                   className="flex-1"
-                  onClick={() => setShowWalletModal(false)}
+                  variant="outline"
+                  onClick={() => {
+                    setShowWalletModal(false);
+                    setSelectedMembershipToPay(null);
+                  }}
                   data-testid="button-wallet-close"
                 >
-                  Close
+                  {selectedMembershipToPay ? "Cancel" : "Close"}
                 </Button>
+                {selectedMembershipToPay && (
+                  <Button
+                    className="flex-1"
+                    onClick={handleConfirmMembershipPayment}
+                    disabled={isPayingMembership || mockWalletBalance < (memberships.find(m => m.id === selectedMembershipToPay)?.price || 0)}
+                    data-testid="button-confirm-payment"
+                  >
+                    {isPayingMembership ? "Processing..." : "Confirm Payment"}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
