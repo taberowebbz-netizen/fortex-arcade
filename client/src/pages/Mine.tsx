@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import React from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ export default function Mine() {
   const [isMining, setIsMining] = useState(false);
   const [canClaim, setCanClaim] = useState(false);
   const [secondsUntilMine, setSecondsUntilMine] = useState<number | null>(null);
+  const [miningCountdown, setMiningCountdown] = useState<number | null>(null);
   const { toast } = useToast();
 
   const MINING_DURATION = 10; // 10 seconds for demo
@@ -24,16 +25,34 @@ export default function Mine() {
   const handleStartMining = () => {
     setIsMining(true);
     setCanClaim(false);
+    setMiningCountdown(MINING_DURATION);
   };
 
   const handleMiningComplete = () => {
     setIsMining(false);
     setCanClaim(true);
+    setMiningCountdown(null);
     toast({
       title: "Mining Complete!",
       description: "Claim your tokens now.",
     });
   };
+
+  // Mining countdown timer
+  useEffect(() => {
+    if (!isMining || miningCountdown === null) return;
+    
+    if (miningCountdown <= 0) {
+      handleMiningComplete();
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setMiningCountdown(prev => prev !== null ? prev - 1 : null);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isMining, miningCountdown]);
 
   const handleClaim = () => {
     claim(50, { // Claim 50 tokens
@@ -107,9 +126,9 @@ export default function Mine() {
                 COOLDOWN: {Math.floor(secondsUntilMine / 3600)}h {Math.floor((secondsUntilMine % 3600) / 60)}m {(secondsUntilMine % 60).toString().padStart(2, '0')}s
               </div>
             )}
-            {isMining && (
+            {isMining && miningCountdown !== null && (
               <div className="text-primary font-mono text-sm tracking-widest animate-pulse">
-                MINING: {Math.floor((MINING_DURATION - (MINING_DURATION - 10)) / 60)}:{((MINING_DURATION - (MINING_DURATION - 10)) % 60).toString().padStart(2, '0')}
+                MINING: {Math.floor(miningCountdown / 60)}:{(miningCountdown % 60).toString().padStart(2, '0')}
               </div>
             )}
           </div>

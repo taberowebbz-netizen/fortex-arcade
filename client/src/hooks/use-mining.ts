@@ -15,8 +15,15 @@ export function useClaimMining() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Failed to claim tokens");
-      return api.mining.claim.responses[200].parse(await res.json());
+      const data = await res.json();
+      
+      if (!res.ok) {
+        const error = new Error(data.message || "Failed to claim tokens") as any;
+        error.secondsUntilMine = data.secondsUntilMine;
+        throw error;
+      }
+      
+      return api.mining.claim.responses[200].parse(data);
     },
     onSuccess: () => {
       if (user?.worldId) {
