@@ -2,7 +2,6 @@ import { useState } from "react";
 import React from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
-import { MiningTimer } from "@/components/MiningTimer";
 import { useClaimMining } from "@/hooks/use-mining";
 import { useUser } from "@/hooks/use-user";
 import { motion, AnimatePresence } from "framer-motion";
@@ -89,21 +88,31 @@ export default function Mine() {
         <h1 className="text-2xl mb-8">Cloud Mining Node</h1>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full">
-          {secondsUntilMine && secondsUntilMine > 0 ? (
-            <MiningTimer 
-              durationSeconds={secondsUntilMine} 
-              isActive={true} 
-              onComplete={() => setSecondsUntilMine(null)}
-              isCooldown={true}
+          <div className="relative w-72 h-72">
+            <img 
+              src="/images/fortex-coin.jpg" 
+              alt="FORTEX Mining Coin" 
+              className="w-full h-full object-cover rounded-full shadow-[0_0_40px_rgba(6,182,212,0.6)] border-4 border-primary/50"
             />
-          ) : (
-            <MiningTimer 
-              durationSeconds={MINING_DURATION} 
-              isActive={isMining} 
-              onComplete={handleMiningComplete}
-              isCooldown={false}
-            />
-          )}
+            {(isMining || (secondsUntilMine && secondsUntilMine > 0)) && (
+              <div className="absolute inset-0 rounded-full animate-spin" style={{ animationDuration: '3s' }}>
+                <div className="w-full h-full border-4 border-transparent border-t-primary border-r-primary rounded-full" />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 text-center">
+            {secondsUntilMine && secondsUntilMine > 0 && (
+              <div className="text-red-500 font-mono text-sm tracking-widest">
+                COOLDOWN: {Math.floor(secondsUntilMine / 3600)}h {Math.floor((secondsUntilMine % 3600) / 60)}m {(secondsUntilMine % 60).toString().padStart(2, '0')}s
+              </div>
+            )}
+            {isMining && (
+              <div className="text-primary font-mono text-sm tracking-widest animate-pulse">
+                MINING: {Math.floor((MINING_DURATION - (MINING_DURATION - 10)) / 60)}:{((MINING_DURATION - (MINING_DURATION - 10)) % 60).toString().padStart(2, '0')}
+              </div>
+            )}
+          </div>
 
           <div className="mt-12 w-full max-w-xs space-y-4">
             <AnimatePresence mode="wait">
