@@ -93,13 +93,25 @@ export default function Home() {
     setIsWithdrawing(true);
     try {
       const totalRewards = getStakeRewards(stake);
+      const totalWithdrawAmount = stake.amount + totalRewards;
+
+      // Add the stake + rewards to the user's balance
+      const res = await fetch("/api/balance/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: totalWithdrawAmount }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add balance");
+
       toast({
         title: "Stake Withdrawn!",
         description: `You withdrew ${stake.amount} FORTEX + ${totalRewards.toFixed(6)} FORTEX in rewards.`,
       });
-      // In a real app, you'd call an API to withdraw the stake
-      // For now, just reset the selected membership to "free"
+
+      // Reset the selected membership to "free"
       setSelectedMembership("free");
+      refetch();
     } catch (error) {
       toast({
         variant: "destructive",

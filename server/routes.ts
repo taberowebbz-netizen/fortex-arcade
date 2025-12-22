@@ -117,6 +117,31 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/balance/add", async (req, res) => {
+    if (!currentUserId) {
+      // fallback: find or create demo user
+      const user = await storage.createUser({ worldId: "demo_user", username: "DemoMiner" }).catch(() => storage.getUserByWorldId("demo_user"));
+      if (user) currentUserId = user.id;
+    }
+
+    if (!currentUserId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    try {
+      const { amount } = req.body;
+      
+      if (typeof amount !== "number" || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      const updatedUser = await storage.updateBalance(currentUserId, amount);
+      res.json({ success: true, newBalance: updatedUser.minedBalance || 0 });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to add balance" });
+    }
+  });
+
   // Seed default user
   const existing = await storage.getUserByWorldId("demo_user");
   if (!existing) {
