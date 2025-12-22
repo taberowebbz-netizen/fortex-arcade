@@ -136,7 +136,7 @@ export default function Home() {
       setStakingAmount("");
       toast({
         title: "Staking Initiated",
-        description: `${amount} WLD staked for ${stakingDuration} days. You'll earn rewards daily!`,
+        description: `${amount} FORTEX staked for ${stakingDuration} days. You'll earn rewards daily!`,
       });
       refetch();
     }, 1500);
@@ -239,7 +239,7 @@ export default function Home() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
               <div className="flex items-center justify-between p-6 border-b border-white/10">
-                <h2 className="text-xl font-bold">Stake WLD</h2>
+                <h2 className="text-xl font-bold">Stake FORTEX</h2>
                 <button 
                   onClick={() => setShowStakingModal(false)}
                   className="p-1 hover:bg-white/10 rounded-lg transition-colors"
@@ -253,12 +253,12 @@ export default function Home() {
                 {/* Current Staking */}
                 <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
                   <p className="text-xs text-muted-foreground mb-1">Currently Staking</p>
-                  <p className="text-2xl font-bold text-white">{mockStakedAmount} WLD</p>
+                  <p className="text-2xl font-bold text-white">{mockStakedAmount} FORTEX</p>
                 </div>
 
                 {/* Amount */}
                 <div>
-                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Stake (WLD)</label>
+                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Stake (FORTEX)</label>
                   <input 
                     type="number" 
                     value={stakingAmount}
@@ -268,7 +268,7 @@ export default function Home() {
                     max={mockWalletBalance}
                     data-testid="input-staking-amount"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">Available: {mockWalletBalance} WLD</p>
+                  <p className="text-xs text-muted-foreground mt-1">Available: {mockWalletBalance} FORTEX</p>
                 </div>
 
                 {/* Duration */}
@@ -289,7 +289,7 @@ export default function Home() {
 
                 {/* Info */}
                 <div className="p-3 bg-primary/10 rounded-lg text-xs text-primary/80 border border-primary/20">
-                  <p>Stake your WLD to earn daily rewards. The longer you lock, the higher your APY!</p>
+                  <p>Stake your FORTEX to earn daily rewards. The longer you lock, the higher your APY!</p>
                 </div>
               </div>
 
