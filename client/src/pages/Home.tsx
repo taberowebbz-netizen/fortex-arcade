@@ -154,11 +154,11 @@ export default function Home() {
             </div>
             <div className="mt-6 flex gap-3">
               <Link href="/mine" className="flex-1">
-                <Button className="w-full bg-white text-black hover:bg-gray-200">Start Mining</Button>
+                <Button className="w-full bg-white text-black hover:bg-gray-200" data-testid="button-start-mining">Start Mining</Button>
               </Link>
               <Button 
                 variant="outline" 
-                className="flex-1 border-white/20 text-white hover:bg-white/10"
+                className="flex-1"
                 onClick={() => setShowDepositModal(true)}
                 data-testid="button-deposit"
               >
@@ -253,7 +253,6 @@ export default function Home() {
 
               <div className="p-6 border-t border-white/10 flex gap-2">
                 <Button
-                  variant="outline"
                   className="flex-1"
                   onClick={() => setShowWalletModal(false)}
                   data-testid="button-wallet-close"
@@ -310,7 +309,7 @@ export default function Home() {
                   Cancel
                 </Button>
                 <Button
-                  className="flex-1 bg-primary hover:bg-primary/90"
+                  className="flex-1"
                   onClick={handleDeposit}
                   disabled={isDepositing || !depositAmount.trim()}
                   data-testid="button-confirm-deposit"
@@ -336,18 +335,15 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0 }}
                 whileHover={{ scale: 1.05 }}
               >
-                <button
+                <Button
                   onClick={() => handleMembershipUpdate(membership.id)}
                   disabled={isUpdatingMembership}
                   className={`w-full p-4 rounded-xl transition-all ${
                     isSelected
                       ? "ring-2 ring-primary"
                       : ""
-                  } ${
-                    membership.id === "free"
-                      ? "glass-panel"
-                      : `glass-panel bg-gradient-to-br ${membership.color} opacity-80 hover:opacity-100`
-                  } disabled:opacity-50`}
+                  } glass-panel bg-gradient-to-br ${membership.color} opacity-80 hover:opacity-100`}
+                  variant="ghost"
                   data-testid={`button-membership-${membership.id}`}
                 >
                   <div className="flex flex-col items-center gap-2">
@@ -358,7 +354,7 @@ export default function Home() {
                     )}
                     <p className="text-xs text-white/80">+{membership.bonus}%</p>
                   </div>
-                </button>
+                </Button>
               </motion.div>
             );
           })}
