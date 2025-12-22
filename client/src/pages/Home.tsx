@@ -109,6 +109,16 @@ export default function Home() {
   const handleMembershipUpdate = async (membershipId: string) => {
     const membership = memberships.find(m => m.id === membershipId);
     
+    // Check if user already owns this membership
+    if (selectedMembership === membershipId) {
+      toast({
+        variant: "destructive",
+        title: "Already Owned",
+        description: `You already own the ${membership?.name} membership. You can only upgrade to a higher tier.`,
+      });
+      return;
+    }
+    
     // Show payment modal to complete the purchase
     setSelectedMembershipToPay(membershipId);
     setShowWalletModal(true);
@@ -648,7 +658,7 @@ export default function Home() {
             const isSelected = selectedMembership === membership.id;
             const currentMembership = memberships.find(m => m.id === selectedMembership);
             const isLowerTier = currentMembership && membership.price < currentMembership.price;
-            const isDisabled = isLowerTier || isUpdatingMembership;
+            const isDisabled = (isLowerTier || isUpdatingMembership || isSelected);
             
             return (
               <motion.div
@@ -677,6 +687,7 @@ export default function Home() {
                       <p className="text-xs text-white/70">{membership.price} WLD</p>
                     )}
                     <p className="text-xs text-white/80">+{membership.bonus}%</p>
+                    {isSelected && <p className="text-xs text-emerald-400">Owned</p>}
                     {isLowerTier && <p className="text-xs text-red-400">Locked</p>}
                   </div>
                 </Button>
