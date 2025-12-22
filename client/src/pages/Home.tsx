@@ -36,7 +36,6 @@ export default function Home() {
   ];
 
   const memberships = [
-    { id: "free", name: "Free", bonus: 0, price: 0, color: "from-gray-500 to-gray-600", icon: null },
     { id: "vip", name: "VIP", bonus: 50, price: 10, color: "from-blue-500 to-cyan-500", icon: Star },
     { id: "silver", name: "Silver", bonus: 75, price: 20, color: "from-slate-400 to-slate-500", icon: Star },
     { id: "gold", name: "Gold", bonus: 100, price: 30, color: "from-yellow-500 to-orange-500", icon: Crown },
