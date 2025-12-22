@@ -3,8 +3,8 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { TrendingUp, Activity, Zap, Crown, Star, X, Wallet as WalletIcon, Copy, Check, Lock } from "lucide-react";
-import { useState } from "react";
+import { TrendingUp, Activity, Zap, Crown, Star, X, Wallet as WalletIcon, Copy, Check, Lock, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
@@ -23,10 +23,54 @@ export default function Home() {
   const [isStaking, setIsStaking] = useState(false);
   const [selectedMembershipToPay, setSelectedMembershipToPay] = useState<string | null>(null);
   const [isPayingMembership, setIsPayingMembership] = useState(false);
+  const [activeStakes, setActiveStakes] = useState<Array<{
+    id: string;
+    amount: number;
+    duration: number;
+    startTime: Date;
+    apy: number;
+  }>>([
+    {
+      id: "stake-1",
+      amount: 500,
+      duration: 365,
+      startTime: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // Started 15 days ago
+      apy: 15,
+    },
+    {
+      id: "stake-2",
+      amount: 300,
+      duration: 180,
+      startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Started 5 days ago
+      apy: 12,
+    },
+  ]);
+  const [, setUpdateTrigger] = useState({});
 
   const mockWalletAddress = "0x" + user?.worldId?.substring(0, 40) || "0x1234567890abcdef";
   const mockWalletBalance = 250.5;
   const mockStakedAmount = 1000;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setUpdateTrigger({});
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getStakeRewards = (stake: typeof activeStakes[0]) => {
+    const secondsElapsed = (Date.now() - stake.startTime.getTime()) / 1000;
+    const dailyReward = (stake.amount * stake.apy) / 100 / 365;
+    const totalRewards = (dailyReward * secondsElapsed) / (24 * 60 * 60);
+    return totalRewards;
+  };
+
+  const getDaysRemaining = (stake: typeof activeStakes[0]) => {
+    const secondsElapsed = (Date.now() - stake.startTime.getTime()) / 1000;
+    const totalSeconds = stake.duration * 24 * 60 * 60;
+    const remainingSeconds = Math.max(0, totalSeconds - secondsElapsed);
+    return Math.ceil(remainingSeconds / (24 * 60 * 60));
+  };
 
   if (isLoading) {
     return (
@@ -156,6 +200,22 @@ export default function Home() {
 
     setIsStaking(true);
     setTimeout(() => {
+      const apyMap: { [key: string]: number } = {
+        "30": 5,
+        "90": 8,
+        "180": 12,
+        "365": 15,
+      };
+      
+      const newStake = {
+        id: `stake-${Date.now()}`,
+        amount,
+        duration: parseInt(stakingDuration),
+        startTime: new Date(),
+        apy: apyMap[stakingDuration] || 5,
+      };
+      
+      setActiveStakes([...activeStakes, newStake]);
       setIsStaking(false);
       setShowStakingModal(false);
       setStakingAmount("");
@@ -258,6 +318,56 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+
+        {/* Active Stakes Section */}
+        {activeStakes.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold mb-4 text-white">Active Stakes</h2>
+            <div className="space-y-3">
+              {activeStakes.map((stake, index) => (
+                <motion.div
+                  key={stake.id}
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="glass-panel p-4 rounded-2xl border border-primary/30 hover:border-primary/50 transition-colors"
+                  data-testid={`card-stake-${stake.id}`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Lock size={16} className="text-primary" />
+                        <span className="font-bold text-white">{stake.amount} FORTEX</span>
+                        <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">{stake.apy}% APY</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {getDaysRemaining(stake)} days remaining
+                      </p>
+                      
+                      {/* Real-time Rewards */}
+                      <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs text-muted-foreground">Earned Rewards</span>
+                          <span className="text-sm font-bold text-emerald-400">
+                            +{getStakeRewards(stake).toFixed(6)} FORTEX
+                          </span>
+                        </div>
+                        <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-primary to-emerald-400 h-full transition-all duration-1000"
+                            style={{
+                              width: `${Math.min(100, (((Date.now() - stake.startTime.getTime()) / 1000) / (stake.duration * 24 * 60 * 60)) * 100)}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Staking Modal */}
         {showStakingModal && (
