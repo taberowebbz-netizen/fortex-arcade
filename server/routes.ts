@@ -47,22 +47,8 @@ export async function registerRoutes(
   });
 
   app.post(api.mining.claim.path, async (req, res) => {
-    // In a real app, check session
-    // For demo, we might need to pass userId or use the one we just "logged in" with
-    // But since this is stateless, let's rely on the frontend passing a user ID or just fail if no auth
-    
-    // Simplification: Allow claiming for any user ID passed in headers or body? 
-    // Let's assume the frontend sends the worldId in a header for this MVP
-    
-    // Actually, to keep it simple for the MVP without complex auth:
-    // We will just seed a default user on startup and always use that user for the demo
-    // OR, we expect the frontend to pass the ID.
-    
-    // Let's implement a "demo mode" claim that works for the most recently created user
-    // This is hacky but fits "lite build" where we skip full auth implementation details
-    
     if (!currentUserId) {
-       // fallback: find any user
+       // fallback: find or create demo user
        const user = await storage.createUser({ worldId: "demo_user", username: "DemoMiner" }).catch(() => storage.getUserByWorldId("demo_user"));
        if (user) currentUserId = user.id;
     }
@@ -71,9 +57,39 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Not authenticated" });
     }
 
-    const { amount } = req.body;
-    const updatedUser = await storage.updateBalance(currentUserId, amount);
-    res.json({ success: true, newBalance: updatedUser.minedBalance || 0 });
+    try {
+      const { amount } = api.mining.claim.input.parse(req.body);
+      
+      // Get current user to check cooldown
+      const userRecord = await storage.getUserByWorldId("demo_user");
+      if (!userRecord) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Check if 24h cooldown has passed
+      const now = new Date();
+      const nextMineTime = new Date(userRecord.nextMineTime);
+      
+      if (now < nextMineTime) {
+        const secondsUntilMine = Math.ceil((nextMineTime.getTime() - now.getTime()) / 1000);
+        return res.status(400).json({ 
+          message: "Mining on cooldown",
+          secondsUntilMine,
+          nextMineTime: nextMineTime.toISOString()
+        });
+      }
+
+      const updatedUser = await storage.updateBalance(currentUserId, amount);
+      res.json({ success: true, newBalance: updatedUser.minedBalance || 0, nextMineTime: updatedUser.nextMineTime });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
   });
 
   // Seed default user

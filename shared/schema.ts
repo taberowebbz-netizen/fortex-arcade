@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   username: text("username"),
   minedBalance: integer("mined_balance").default(0),
   lastMineTime: timestamp("last_mine_time").defaultNow(),
+  nextMineTime: timestamp("next_mine_time").defaultNow(), // 24h cooldown
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, minedBalance: true, lastMineTime: true });

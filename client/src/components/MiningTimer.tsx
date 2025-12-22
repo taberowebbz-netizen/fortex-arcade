@@ -5,9 +5,10 @@ interface MiningTimerProps {
   durationSeconds: number;
   onComplete: () => void;
   isActive: boolean;
+  isCooldown?: boolean;
 }
 
-export function MiningTimer({ durationSeconds, onComplete, isActive }: MiningTimerProps) {
+export function MiningTimer({ durationSeconds, onComplete, isActive, isCooldown = false }: MiningTimerProps) {
   const [timeLeft, setTimeLeft] = useState(durationSeconds);
 
   useEffect(() => {
@@ -60,10 +61,10 @@ export function MiningTimer({ durationSeconds, onComplete, isActive }: MiningTim
       {/* Time Text */}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-4xl font-bold font-display tracking-widest text-white">
-          {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+          {Math.floor(timeLeft / 3600)}h {Math.floor((timeLeft % 3600) / 60)}m {(timeLeft % 60).toString().padStart(2, '0')}s
         </span>
-        <span className="text-xs text-muted-foreground uppercase tracking-widest mt-1">
-          {isActive ? "Mining..." : "Ready"}
+        <span className={`text-xs uppercase tracking-widest mt-1 ${isCooldown ? 'text-destructive' : 'text-primary'}`}>
+          {isCooldown ? "Cooldown..." : isActive ? "Mining..." : "Ready"}
         </span>
       </div>
     </div>
