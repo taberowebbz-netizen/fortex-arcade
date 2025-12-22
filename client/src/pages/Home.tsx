@@ -347,10 +347,10 @@ export default function Home() {
               <Button 
                 variant="outline" 
                 className="flex-1"
-                onClick={() => setShowDepositModal(true)}
-                data-testid="button-deposit"
+                onClick={() => setShowStakingModal(true)}
+                data-testid="button-staking-miners"
               >
-                Deposit
+                Staking
               </Button>
             </div>
           </div>
