@@ -3,7 +3,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { TrendingUp, Activity, Zap, Crown, Star, X, Wallet as WalletIcon, Copy, Check } from "lucide-react";
+import { TrendingUp, Activity, Zap, Crown, Star, X, Wallet as WalletIcon, Copy, Check, Lock } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,9 +17,14 @@ export default function Home() {
   const [isDepositing, setIsDepositing] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [walletCopied, setWalletCopied] = useState(false);
+  const [showStakingModal, setShowStakingModal] = useState(false);
+  const [stakingAmount, setStakingAmount] = useState("");
+  const [stakingDuration, setStakingDuration] = useState("30");
+  const [isStaking, setIsStaking] = useState(false);
 
   const mockWalletAddress = "0x" + user?.worldId?.substring(0, 40) || "0x1234567890abcdef";
   const mockWalletBalance = 250.5;
+  const mockStakedAmount = 1000;
 
   if (isLoading) {
     return (
@@ -104,6 +109,39 @@ export default function Home() {
     });
   };
 
+  const handleStaking = () => {
+    const amount = parseFloat(stakingAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid amount",
+      });
+      return;
+    }
+
+    if (amount > mockWalletBalance) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Insufficient balance",
+      });
+      return;
+    }
+
+    setIsStaking(true);
+    setTimeout(() => {
+      setIsStaking(false);
+      setShowStakingModal(false);
+      setStakingAmount("");
+      toast({
+        title: "Staking Initiated",
+        description: `${amount} WLD staked for ${stakingDuration} days. You'll earn rewards daily!`,
+      });
+      refetch();
+    }, 1500);
+  };
+
   return (
     <div className="min-h-screen bg-background pb-24 text-foreground overflow-hidden relative">
       {/* Ambient background effects */}
@@ -119,6 +157,15 @@ export default function Home() {
             <p className="text-muted-foreground text-sm">Welcome back, {user?.username || "Miner"}</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="text-primary hover:bg-primary/10"
+              onClick={() => setShowStakingModal(true)}
+              data-testid="button-staking"
+            >
+              <Lock size={20} />
+            </Button>
             <Button 
               size="icon" 
               variant="ghost" 
@@ -186,6 +233,87 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+
+        {/* Staking Modal */}
+        {showStakingModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-xl font-bold">Stake WLD</h2>
+                <button 
+                  onClick={() => setShowStakingModal(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  data-testid="button-close-staking"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                {/* Current Staking */}
+                <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                  <p className="text-xs text-muted-foreground mb-1">Currently Staking</p>
+                  <p className="text-2xl font-bold text-white">{mockStakedAmount} WLD</p>
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Stake (WLD)</label>
+                  <input 
+                    type="number" 
+                    value={stakingAmount}
+                    onChange={(e) => setStakingAmount(e.target.value)}
+                    className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white placeholder-muted-foreground focus:outline-none focus:border-primary/50"
+                    placeholder="0"
+                    max={mockWalletBalance}
+                    data-testid="input-staking-amount"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Available: {mockWalletBalance} WLD</p>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Lock Duration</label>
+                  <select 
+                    value={stakingDuration}
+                    onChange={(e) => setStakingDuration(e.target.value)}
+                    className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary/50"
+                    data-testid="select-staking-duration"
+                  >
+                    <option value="30">30 Days (5% APY)</option>
+                    <option value="90">90 Days (8% APY)</option>
+                    <option value="180">180 Days (12% APY)</option>
+                    <option value="365">365 Days (15% APY)</option>
+                  </select>
+                </div>
+
+                {/* Info */}
+                <div className="p-3 bg-primary/10 rounded-lg text-xs text-primary/80 border border-primary/20">
+                  <p>Stake your WLD to earn daily rewards. The longer you lock, the higher your APY!</p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowStakingModal(false)}
+                  data-testid="button-staking-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleStaking}
+                  disabled={isStaking || !stakingAmount.trim()}
+                  data-testid="button-confirm-staking"
+                >
+                  {isStaking ? "Processing..." : "Stake"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Wallet Modal */}
         {showWalletModal && (
