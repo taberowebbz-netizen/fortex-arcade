@@ -19,7 +19,7 @@ export default function Home() {
   const [walletCopied, setWalletCopied] = useState(false);
   const [showStakingModal, setShowStakingModal] = useState(false);
   const [stakingAmount, setStakingAmount] = useState("");
-  const [stakingDuration, setStakingDuration] = useState("30");
+  const [stakingDuration, setStakingDuration] = useState("vip");
   const [isStaking, setIsStaking] = useState(false);
   const [selectedMembershipToPay, setSelectedMembershipToPay] = useState<string | null>(null);
   const [isPayingMembership, setIsPayingMembership] = useState(false);
@@ -33,16 +33,16 @@ export default function Home() {
     {
       id: "stake-1",
       amount: 500,
-      duration: 365,
-      startTime: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // Started 15 days ago
-      apy: 15,
+      duration: 1,
+      startTime: new Date(Date.now() - 15 * 60 * 60 * 1000), // Started 15 hours ago
+      apy: 150,
     },
     {
       id: "stake-2",
       amount: 300,
-      duration: 180,
-      startTime: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Started 5 days ago
-      apy: 12,
+      duration: 1,
+      startTime: new Date(Date.now() - 5 * 60 * 60 * 1000), // Started 5 hours ago
+      apy: 100,
     },
   ]);
   const [, setUpdateTrigger] = useState({});
@@ -201,18 +201,25 @@ export default function Home() {
     setIsStaking(true);
     setTimeout(() => {
       const apyMap: { [key: string]: number } = {
-        "30": 5,
-        "90": 8,
-        "180": 12,
-        "365": 15,
+        "vip": 50,
+        "silver": 75,
+        "gold": 100,
+        "platinum": 150,
+      };
+
+      const durationNameMap: { [key: string]: string } = {
+        "vip": "VIP",
+        "silver": "Silver",
+        "gold": "Gold",
+        "platinum": "Platinum",
       };
       
       const newStake = {
         id: `stake-${Date.now()}`,
         amount,
-        duration: parseInt(stakingDuration),
+        duration: 1, // 24 hours
         startTime: new Date(),
-        apy: apyMap[stakingDuration] || 5,
+        apy: apyMap[stakingDuration] || 50,
       };
       
       setActiveStakes([...activeStakes, newStake]);
@@ -221,7 +228,7 @@ export default function Home() {
       setStakingAmount("");
       toast({
         title: "Staking Initiated",
-        description: `${amount} FORTEX staked for ${stakingDuration} days. You'll earn rewards daily!`,
+        description: `${amount} FORTEX staked for 24h with ${apyMap[stakingDuration] || 50}% APY (${durationNameMap[stakingDuration]} tier). You'll earn rewards!`,
       });
       refetch();
     }, 1500);
@@ -415,16 +422,16 @@ export default function Home() {
                     className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary/50"
                     data-testid="select-staking-duration"
                   >
-                    <option value="30">30 Days (5% APY)</option>
-                    <option value="90">90 Days (8% APY)</option>
-                    <option value="180">180 Days (12% APY)</option>
-                    <option value="365">365 Days (15% APY)</option>
+                    <option value="vip">24h VIP (50% APY)</option>
+                    <option value="silver">24h Silver (75% APY)</option>
+                    <option value="gold">24h Gold (100% APY)</option>
+                    <option value="platinum">24h Platinum (150% APY)</option>
                   </select>
                 </div>
 
                 {/* Info */}
                 <div className="p-3 bg-primary/10 rounded-lg text-xs text-primary/80 border border-primary/20">
-                  <p>Stake your FORTEX to earn daily rewards. The longer you lock, the higher your APY!</p>
+                  <p>Lock for 24h to earn rewards. Your staking tier (VIP, Silver, Gold, Platinum) determines your APY!</p>
                 </div>
               </div>
 
