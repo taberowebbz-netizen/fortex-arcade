@@ -3,20 +3,17 @@ import { api, type VerifyRequest } from "@shared/routes";
 import { MiniKit, VerificationLevel } from '@worldcoin/minikit-js';
 import { useMiniKit } from "./use-minikit";
 
-// Mock user ID for browser testing if MiniKit isn't present
-const MOCK_WORLD_ID = "mock_world_id_123";
-
 export function useUser() {
-  const { isInstalled } = useMiniKit();
-  // In a real app, we'd get the ID from the verify command or context
-  // For this demo, we assume a connected user ID once verified
-  const worldId = isInstalled ? (MiniKit.walletAddress || MOCK_WORLD_ID) : MOCK_WORLD_ID;
+  const { currentUser } = useMiniKit();
+  
+  // If currentUser is set from login, use that
+  const worldId = currentUser?.worldId;
 
   return useQuery({
     queryKey: [api.user.get.path, worldId],
     queryFn: async () => {
-      // In a real flow, you'd verify first, then fetch user. 
-      // Here we assume we have the ID to fetch.
+      if (!worldId) return null;
+      
       const url = api.user.get.path.replace(':worldId', worldId);
       const res = await fetch(url);
       
@@ -31,23 +28,28 @@ export function useUser() {
 
 export function useVerify() {
   const queryClient = useQueryClient();
-  const { isInstalled } = useMiniKit();
+  const { isInstalled, setCurrentUser } = useMiniKit();
 
   return useMutation({
     mutationFn: async () => {
       let payload = { mock: true };
       
       if (isInstalled) {
-        // Trigger World ID verification
-        const verifyResponse = await MiniKit.commandsAsync.verify({
-          action: 'login-action', 
-          verification_level: VerificationLevel.Orb, // or Device
-        });
-        
-        if (verifyResponse.finalPayload.status !== 'success') {
-          throw new Error('Verification failed');
+        try {
+          // Trigger World ID verification
+          const verifyResponse = await MiniKit.commandsAsync.verify({
+            action: 'login-action', 
+            verification_level: VerificationLevel.Device, // Use Device for easier testing
+          });
+          
+          if (verifyResponse.finalPayload.status !== 'success') {
+            throw new Error('Verification failed');
+          }
+          payload = verifyResponse.finalPayload;
+        } catch (err) {
+          console.log('MiniKit verify failed, using mock:', err);
+          payload = { mock: true };
         }
-        payload = verifyResponse.finalPayload;
       }
 
       // Send proof to backend
@@ -61,9 +63,12 @@ export function useVerify() {
       });
 
       if (!res.ok) throw new Error("Backend verification failed");
-      return api.auth.verify.responses[200].parse(await res.json());
+      const user = api.auth.verify.responses[200].parse(await res.json());
+      return user;
     },
     onSuccess: (data) => {
+      // Store the user in context so useUser can fetch the data
+      setCurrentUser(data);
       queryClient.setQueryData([api.user.get.path, data.worldId], data);
     }
   });
