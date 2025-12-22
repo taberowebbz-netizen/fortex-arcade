@@ -1,10 +1,9 @@
 import { useVerify } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { Shield } from "lucide-react";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import fortexLogo from "@assets/photo_2025-10-17_21-00-54_1766418467147.jpg";
 
 export default function Login() {
   const { mutate: verify, isPending } = useVerify();
@@ -36,8 +35,8 @@ export default function Login() {
         animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-sm text-center"
       >
-        <div className="w-20 h-20 bg-primary/20 rounded-2xl flex items-center justify-center mx-auto mb-8 border border-primary/50 shadow-[0_0_30px_rgba(6,182,212,0.3)]">
-          <Shield className="w-10 h-10 text-primary" />
+        <div className="w-40 h-40 rounded-full mx-auto mb-8 shadow-[0_0_40px_rgba(6,182,212,0.4)] overflow-hidden">
+          <img src={fortexLogo} alt="FORTEX" className="w-full h-full object-cover" />
         </div>
 
         <h1 className="text-4xl font-display font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
