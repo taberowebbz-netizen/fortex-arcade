@@ -28,11 +28,11 @@ export default function Home() {
   ];
 
   const memberships = [
-    { id: "free", name: "Free", bonus: 0, color: "from-gray-500 to-gray-600", icon: null },
-    { id: "vip", name: "VIP", bonus: 50, color: "from-blue-500 to-cyan-500", icon: Star },
-    { id: "silver", name: "Silver", bonus: 75, color: "from-slate-400 to-slate-500", icon: Star },
-    { id: "gold", name: "Gold", bonus: 100, color: "from-yellow-500 to-orange-500", icon: Crown },
-    { id: "platinum", name: "Platinum", bonus: 150, color: "from-purple-500 to-pink-500", icon: Crown },
+    { id: "free", name: "Free", bonus: 0, price: 0, color: "from-gray-500 to-gray-600", icon: null },
+    { id: "vip", name: "VIP", bonus: 50, price: 10, color: "from-blue-500 to-cyan-500", icon: Star },
+    { id: "silver", name: "Silver", bonus: 75, price: 20, color: "from-slate-400 to-slate-500", icon: Star },
+    { id: "gold", name: "Gold", bonus: 100, price: 30, color: "from-yellow-500 to-orange-500", icon: Crown },
+    { id: "platinum", name: "Platinum", bonus: 150, price: 50, color: "from-purple-500 to-pink-500", icon: Crown },
   ];
 
   const handleMembershipUpdate = async (membershipId: string) => {
@@ -161,6 +161,9 @@ export default function Home() {
                   <div className="flex flex-col items-center gap-2">
                     {Icon && <Icon className="w-5 h-5" />}
                     <h3 className="font-bold text-white text-sm">{membership.name}</h3>
+                    {membership.price > 0 && (
+                      <p className="text-xs text-white/70">{membership.price} WLD</p>
+                    )}
                     <p className="text-xs text-white/80">+{membership.bonus}%</p>
                   </div>
                 </button>
