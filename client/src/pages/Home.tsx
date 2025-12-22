@@ -639,21 +639,27 @@ export default function Home() {
           {memberships.map((membership) => {
             const Icon = membership.icon;
             const isSelected = selectedMembership === membership.id;
+            const currentMembership = memberships.find(m => m.id === selectedMembership);
+            const isLowerTier = currentMembership && membership.price < currentMembership.price;
+            const isDisabled = isLowerTier || isUpdatingMembership;
+            
             return (
               <motion.div
                 key={membership.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.05 }}
+                whileHover={!isDisabled ? { scale: 1.05 } : {}}
               >
                 <Button
                   onClick={() => handleMembershipUpdate(membership.id)}
-                  disabled={isUpdatingMembership}
+                  disabled={isDisabled}
                   className={`w-full p-4 rounded-xl transition-all ${
                     isSelected
                       ? "ring-2 ring-primary"
                       : ""
-                  } glass-panel bg-gradient-to-br ${membership.color} opacity-80 hover:opacity-100`}
+                  } glass-panel bg-gradient-to-br ${membership.color} ${
+                    isDisabled ? "opacity-40 cursor-not-allowed" : "opacity-80 hover:opacity-100"
+                  }`}
                   variant="ghost"
                   data-testid={`button-membership-${membership.id}`}
                 >
@@ -664,6 +670,7 @@ export default function Home() {
                       <p className="text-xs text-white/70">{membership.price} WLD</p>
                     )}
                     <p className="text-xs text-white/80">+{membership.bonus}%</p>
+                    {isLowerTier && <p className="text-xs text-red-400">Locked</p>}
                   </div>
                 </Button>
               </motion.div>
