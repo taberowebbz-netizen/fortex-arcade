@@ -23,6 +23,7 @@ export default function Home() {
   const [isStaking, setIsStaking] = useState(false);
   const [selectedMembershipToPay, setSelectedMembershipToPay] = useState<string | null>(null);
   const [isPayingMembership, setIsPayingMembership] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const [activeStakes, setActiveStakes] = useState<Array<{
     id: string;
     amount: number;
@@ -83,6 +84,31 @@ export default function Home() {
       startTime: new Date(Date.now() - 5 * 60 * 60 * 1000), // Started 5 hours ago
       apy: apyMap[selectedMembership] || 50,
     };
+  };
+
+  const handleWithdrawStake = async () => {
+    const stake = getMembershipStake();
+    if (!stake) return;
+
+    setIsWithdrawing(true);
+    try {
+      const totalRewards = getStakeRewards(stake);
+      toast({
+        title: "Stake Withdrawn!",
+        description: `You withdrew ${stake.amount} FORTEX + ${totalRewards.toFixed(6)} FORTEX in rewards.`,
+      });
+      // In a real app, you'd call an API to withdraw the stake
+      // For now, just reset the selected membership to "free"
+      setSelectedMembership("free");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to withdraw stake",
+      });
+    } finally {
+      setIsWithdrawing(false);
+    }
   };
 
   if (isLoading) {
@@ -371,7 +397,7 @@ export default function Home() {
                   </p>
                   
                   {/* Real-time Rewards */}
-                  <div className="bg-white/5 rounded-lg p-3 border border-white/10">
+                  <div className="bg-white/5 rounded-lg p-3 border border-white/10 mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs text-muted-foreground">Earned Rewards</span>
                       <span className="text-sm font-bold text-emerald-400">
@@ -387,6 +413,17 @@ export default function Home() {
                       />
                     </div>
                   </div>
+
+                  {/* Withdraw Button */}
+                  <Button
+                    onClick={handleWithdrawStake}
+                    disabled={isWithdrawing}
+                    className="w-full"
+                    variant="outline"
+                    data-testid="button-withdraw-stake"
+                  >
+                    {isWithdrawing ? "Withdrawing..." : "Withdraw"}
+                  </Button>
                 </div>
               </div>
             </motion.div>
