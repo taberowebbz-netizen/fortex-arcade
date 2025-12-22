@@ -44,6 +44,20 @@ export default function Home() {
       startTime: new Date(Date.now() - 5 * 60 * 60 * 1000), // Started 5 hours ago
       apy: 100,
     },
+    {
+      id: "stake-3",
+      amount: 200,
+      duration: 1,
+      startTime: new Date(Date.now() - 1 * 60 * 60 * 1000), // Started 1 hour ago
+      apy: 75,
+    },
+    {
+      id: "stake-4",
+      amount: 150,
+      duration: 1,
+      startTime: new Date(Date.now() - 30 * 60 * 1000), // Started 30 minutes ago
+      apy: 50,
+    },
   ]);
   const [, setUpdateTrigger] = useState({});
 
