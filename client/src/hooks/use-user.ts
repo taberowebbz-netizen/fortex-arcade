@@ -1,29 +1,32 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { api, type VerifyRequest } from "@shared/routes";
 import { MiniKit, VerificationLevel } from '@worldcoin/minikit-js';
 import { useMiniKit } from "./use-minikit";
 
 export function useUser() {
-  const { currentUser } = useMiniKit();
-  
-  // If currentUser is set from login, use that
-  const worldId = currentUser?.worldId;
+  const { currentUser, isLoading: contextLoading, setCurrentUser } = useMiniKit();
 
-  return useQuery({
-    queryKey: [api.user.get.path, worldId],
+  const query = useQuery({
+    queryKey: ['/api/me'],
     queryFn: async () => {
-      if (!worldId) return null;
-      
-      const url = api.user.get.path.replace(':worldId', worldId);
-      const res = await fetch(url);
-      
-      if (res.status === 404) return null;
+      const res = await fetch('/api/me');
+      if (res.status === 401) return null;
       if (!res.ok) throw new Error("Failed to fetch user");
-      
-      return api.user.get.responses[200].parse(await res.json());
+      return res.json();
     },
-    enabled: !!worldId,
+    enabled: !contextLoading,
+    initialData: currentUser,
+    staleTime: 30000,
   });
+
+  useEffect(() => {
+    if (query.data && query.data?.id !== currentUser?.id) {
+      setCurrentUser(query.data);
+    }
+  }, [query.data, currentUser?.id, setCurrentUser]);
+
+  return query;
 }
 
 export function useVerify() {
@@ -67,9 +70,9 @@ export function useVerify() {
       return user;
     },
     onSuccess: (data) => {
-      // Store the user in context so useUser can fetch the data
       setCurrentUser(data);
-      queryClient.setQueryData([api.user.get.path, data.worldId], data);
+      queryClient.setQueryData(['/api/me'], data);
+      queryClient.invalidateQueries({ queryKey: ['/api/me'] });
     }
   });
 }

@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
@@ -8,51 +8,66 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Mock current user middleware for this demo (since we don't have full auth session)
-  // In a real app, we'd use a session or JWT from the verify endpoint
-  let currentUserId: number | null = null;
 
-  app.post(api.auth.verify.path, async (req, res) => {
+  app.post(api.auth.verify.path, async (req: Request, res: Response) => {
     try {
-      // In a real app, verify the proof with Worldcoin API here
-      // const { payload, action } = req.body;
-      // const verifyRes = await fetch(...)
+      const { payload } = req.body;
       
-      // For now, we assume success and use a mock world_id derived or passed (simplified)
-      // Actually, let's just create a mock user if one doesn't exist for "demo_user"
-      // Or better, let the frontend send a specific ID or we generate one
+      let worldId: string;
       
-      // MOCK: Create/Get a user based on a consistent ID for demo purposes
-      const mockWorldId = "user_" + Math.random().toString(36).substring(7);
+      if (payload && payload.nullifier_hash) {
+        worldId = payload.nullifier_hash;
+      } else {
+        worldId = "user_" + req.sessionID.substring(0, 12);
+      }
       
-      let user = await storage.getUserByWorldId(mockWorldId);
+      let user = await storage.getUserByWorldId(worldId);
       if (!user) {
         user = await storage.createUser({ 
-          worldId: mockWorldId,
-          username: "Miner_" + Math.random().toString(36).substring(7)
+          worldId,
+          username: "Miner_" + worldId.substring(0, 8)
         });
       }
       
-      currentUserId = user.id; // Store in closure for demo (not safe for prod, use sessions)
+      req.session.userId = user.id;
+      req.session.worldId = worldId;
+      
       res.json(user);
     } catch (err) {
+      console.error("Verification error:", err);
       res.status(400).json({ message: "Verification failed" });
     }
   });
 
-  app.get(api.user.get.path, async (req, res) => {
+  app.get("/api/me", async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    res.json({
+      id: user.id,
+      worldId: user.worldId,
+      username: user.username,
+      minedBalance: user.minedBalance,
+      membership: user.membership,
+      lastMineTime: user.lastMineTime,
+      nextMineTime: user.nextMineTime,
+    });
+  });
+
+  app.get(api.user.get.path, async (req: Request, res: Response) => {
     const user = await storage.getUserByWorldId(req.params.worldId);
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   });
 
-  app.post("/api/membership/:membership", async (req, res) => {
-    if (!currentUserId) {
-      const user = await storage.createUser({ worldId: "demo_user", username: "DemoMiner" }).catch(() => storage.getUserByWorldId("demo_user"));
-      if (user) currentUserId = user.id;
-    }
-
-    if (!currentUserId) {
+  app.post("/api/membership/:membership", async (req: Request, res: Response) => {
+    if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
@@ -64,34 +79,40 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid membership type" });
       }
 
-      const updatedUser = await storage.updateMembership(currentUserId, membership);
-      res.json({ success: true, membership: updatedUser.membership });
+      const currentUser = await storage.getUserById(req.session.userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const tierOrder = ["free", "vip", "silver", "gold", "platinum"];
+      const currentTierIndex = tierOrder.indexOf(currentUser.membership || "free");
+      const newTierIndex = tierOrder.indexOf(membership);
+
+      if (newTierIndex <= currentTierIndex && membership !== "free") {
+        return res.status(400).json({ message: "Can only upgrade to higher tiers" });
+      }
+
+      const updatedUser = await storage.updateMembership(req.session.userId, membership);
+      res.json({ success: true, membership: updatedUser.membership, user: updatedUser });
     } catch (err) {
+      console.error("Membership error:", err);
       res.status(500).json({ message: "Failed to update membership" });
     }
   });
 
-  app.post(api.mining.claim.path, async (req, res) => {
-    if (!currentUserId) {
-       // fallback: find or create demo user
-       const user = await storage.createUser({ worldId: "demo_user", username: "DemoMiner" }).catch(() => storage.getUserByWorldId("demo_user"));
-       if (user) currentUserId = user.id;
-    }
-    
-    if (!currentUserId) {
-        return res.status(401).json({ message: "Not authenticated" });
+  app.post(api.mining.claim.path, async (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not authenticated" });
     }
 
     try {
       const { amount } = api.mining.claim.input.parse(req.body);
       
-      // Get current user to check cooldown
-      const userRecord = await storage.getUserByWorldId("demo_user");
+      const userRecord = await storage.getUserById(req.session.userId);
       if (!userRecord) {
         return res.status(404).json({ message: "User not found" });
       }
 
-      // Check if 24h cooldown has passed
       const now = new Date();
       const nextMineTime = new Date(userRecord.nextMineTime);
       
@@ -104,7 +125,7 @@ export async function registerRoutes(
         });
       }
 
-      const updatedUser = await storage.updateBalance(currentUserId, amount);
+      const updatedUser = await storage.updateBalance(req.session.userId, amount);
       res.json({ success: true, newBalance: updatedUser.minedBalance || 0, nextMineTime: updatedUser.nextMineTime });
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -113,43 +134,51 @@ export async function registerRoutes(
           field: err.errors[0].path.join('.'),
         });
       }
-      throw err;
+      console.error("Mining error:", err);
+      res.status(500).json({ message: "Mining failed" });
     }
   });
 
-  app.post("/api/balance/add", async (req, res) => {
-    if (!currentUserId) {
-      // fallback: find or create demo user
-      const user = await storage.createUser({ worldId: "demo_user", username: "DemoMiner" }).catch(() => storage.getUserByWorldId("demo_user"));
-      if (user) currentUserId = user.id;
-    }
+  const balanceSchema = z.object({
+    amount: z.number().positive("Amount must be positive"),
+  });
 
-    if (!currentUserId) {
+  app.post("/api/balance/add", async (req: Request, res: Response) => {
+    if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
     try {
-      const { amount } = req.body;
+      const { amount } = balanceSchema.parse(req.body);
       
-      if (typeof amount !== "number" || amount <= 0) {
-        return res.status(400).json({ message: "Invalid amount" });
-      }
-
-      const updatedUser = await storage.updateBalance(currentUserId, amount);
+      const updatedUser = await storage.addToBalance(req.session.userId, amount);
       res.json({ success: true, newBalance: updatedUser.minedBalance || 0 });
     } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      console.error("Balance add error:", err);
       res.status(500).json({ message: "Failed to add balance" });
     }
   });
 
-  // Seed default user
-  const existing = await storage.getUserByWorldId("demo_user");
-  if (!existing) {
-    await storage.createUser({
-      worldId: "demo_user",
-      username: "Demo Miner",
+  app.post("/api/logout", (req: Request, res: Response) => {
+    if (!req.session.userId) {
+      return res.json({ success: true });
+    }
+    
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Session destroy error:", err);
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ success: true });
     });
-  }
+  });
 
   return httpServer;
 }

@@ -7,6 +7,7 @@ type MiniKitContextType = {
   setUsername: (name: string) => void;
   currentUser: any | null;
   setCurrentUser: (user: any) => void;
+  isLoading: boolean;
 };
 
 const MiniKitContext = createContext<MiniKitContextType | null>(null);
@@ -15,23 +16,40 @@ export function MiniKitProvider({ children }: { children: ReactNode }) {
   const [isInstalled, setIsInstalled] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize MiniKit with a mock App ID for browser testing
     try {
       MiniKit.install({ 
         appId: 'app_staging_fortex_mining_game' 
       });
       setIsInstalled(MiniKit.isInstalled());
     } catch (err) {
-      // MiniKit will fail if not in World App, but that's OK
       console.log('Running in browser mode - MiniKit not available');
       setIsInstalled(false);
     }
   }, []);
 
+  useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/me');
+        if (res.ok) {
+          const user = await res.json();
+          setCurrentUser(user);
+          setUsername(user.username);
+        }
+      } catch (err) {
+        console.log('No existing session');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    checkSession();
+  }, []);
+
   return (
-    <MiniKitContext.Provider value={{ isInstalled, username, setUsername, currentUser, setCurrentUser }}>
+    <MiniKitContext.Provider value={{ isInstalled, username, setUsername, currentUser, setCurrentUser, isLoading }}>
       {children}
     </MiniKitContext.Provider>
   );
