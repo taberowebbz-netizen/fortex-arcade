@@ -1,0 +1,858 @@
+import { useUser } from "@/hooks/use-user";
+import { BottomNav } from "@/components/BottomNav";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+import { motion } from "framer-motion";
+import { TrendingUp, Activity, Zap, Crown, Star, X, Wallet as WalletIcon, Copy, Check, Lock, AlertCircle, ArrowUpRight, ArrowDownLeft, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+export default function Home() {
+  const { data: user, isLoading, refetch } = useUser();
+  const { toast } = useToast();
+  const [selectedMembership, setSelectedMembership] = useState<string>(user?.membership || "free");
+  const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [isDepositing, setIsDepositing] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [walletCopied, setWalletCopied] = useState(false);
+  const [showStakingModal, setShowStakingModal] = useState(false);
+  const [stakingAmount, setStakingAmount] = useState("");
+  const [stakingDuration, setStakingDuration] = useState("vip");
+  const [isStaking, setIsStaking] = useState(false);
+  const [selectedMembershipToPay, setSelectedMembershipToPay] = useState<string | null>(null);
+  const [isPayingMembership, setIsPayingMembership] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
+  const [activeStakes, setActiveStakes] = useState<Array<{
+    id: string;
+    amount: number;
+    duration: number;
+    startTime: Date;
+    apy: number;
+  }>>([]);
+  const [, setUpdateTrigger] = useState({});
+  const [walletTab, setWalletTab] = useState<"buy" | "sell" | "send">("buy");
+  const [selectedCurrency, setSelectedCurrency] = useState<"WLD" | "FORTEX">("WLD");
+  const [walletAmount, setWalletAmount] = useState("");
+  const [sendAddress, setSendAddress] = useState("");
+  const [isProcessingWallet, setIsProcessingWallet] = useState(false);
+
+  const mockWalletAddress = "0x" + user?.worldId?.substring(0, 40) || "0x1234567890abcdef";
+  const mockWalletBalance = 250.5;
+  const mockStakedAmount = 1000;
+  const mockWldBalance = 50.25;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setUpdateTrigger({});
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getStakeRewards = (stake: typeof activeStakes[0]) => {
+    const secondsElapsed = (Date.now() - stake.startTime.getTime()) / 1000;
+    const dailyReward = (stake.amount * stake.apy) / 100 / 365;
+    const totalRewards = (dailyReward * secondsElapsed) / (24 * 60 * 60);
+    return totalRewards;
+  };
+
+  const getDaysRemaining = (stake: typeof activeStakes[0]) => {
+    const secondsElapsed = (Date.now() - stake.startTime.getTime()) / 1000;
+    const totalSeconds = stake.duration * 24 * 60 * 60;
+    const remainingSeconds = Math.max(0, totalSeconds - secondsElapsed);
+    return Math.ceil(remainingSeconds / (24 * 60 * 60));
+  };
+
+  const getMembershipStake = () => {
+    const apyMap: { [key: string]: number } = {
+      "vip": 50,
+      "silver": 75,
+      "gold": 100,
+      "platinum": 150,
+    };
+
+    const amountMap: { [key: string]: number } = {
+      "vip": 100,
+      "silver": 200,
+      "gold": 300,
+      "platinum": 500,
+    };
+
+    if (!selectedMembership || selectedMembership === "free") {
+      return null;
+    }
+
+    return {
+      id: `stake-${selectedMembership}`,
+      amount: amountMap[selectedMembership] || 100,
+      duration: 1,
+      startTime: new Date(Date.now() - 5 * 60 * 60 * 1000), // Started 5 hours ago
+      apy: apyMap[selectedMembership] || 50,
+    };
+  };
+
+  const handleWithdrawStake = async () => {
+    const stake = getMembershipStake();
+    if (!stake) return;
+
+    setIsWithdrawing(true);
+    try {
+      const totalRewards = getStakeRewards(stake);
+      const totalWithdrawAmount = stake.amount + totalRewards;
+
+      // Add the stake + rewards to the user's balance
+      const res = await fetch("/api/balance/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: totalWithdrawAmount }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add balance");
+
+      toast({
+        title: "Stake Withdrawn!",
+        description: `You withdrew ${stake.amount} FORTEX + ${totalRewards.toFixed(6)} FORTEX in rewards.`,
+      });
+
+      // Reset the selected membership to "free"
+      setSelectedMembership("free");
+      refetch();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to withdraw stake",
+      });
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  const stats = [
+    { label: "Mining Rate", value: "1.2/hr", icon: Zap, color: "text-yellow-400" },
+    { label: "Network Hash", value: "450 TH", icon: Activity, color: "text-purple-400" },
+    { label: "Total Mined", value: "8.4M", icon: TrendingUp, color: "text-emerald-400" },
+  ];
+
+  const memberships = [
+    { id: "vip", name: "VIP", bonus: 50, price: 10, color: "from-blue-500 to-cyan-500", icon: Star },
+    { id: "silver", name: "Silver", bonus: 75, price: 20, color: "from-slate-400 to-slate-500", icon: Star },
+    { id: "gold", name: "Gold", bonus: 100, price: 30, color: "from-yellow-500 to-orange-500", icon: Crown },
+    { id: "platinum", name: "Platinum", bonus: 150, price: 50, color: "from-purple-500 to-pink-500", icon: Crown },
+  ];
+
+  const handleMembershipUpdate = async (membershipId: string) => {
+    const membership = memberships.find(m => m.id === membershipId);
+    
+    // Check if user already owns this membership
+    if (selectedMembership === membershipId) {
+      toast({
+        variant: "destructive",
+        title: "Already Owned",
+        description: `You already own the ${membership?.name} membership. You can only upgrade to a higher tier.`,
+      });
+      return;
+    }
+    
+    // Show payment modal to complete the purchase
+    setSelectedMembershipToPay(membershipId);
+    setShowWalletModal(true);
+  };
+
+  const handleConfirmMembershipPayment = async () => {
+    if (!selectedMembershipToPay) return;
+
+    const membership = memberships.find(m => m.id === selectedMembershipToPay);
+    if (!membership) return;
+
+    if (mockWalletBalance < membership.price) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient Balance",
+        description: `You need ${membership.price} WLD. You have ${mockWalletBalance} WLD.`,
+      });
+      return;
+    }
+
+    setIsPayingMembership(true);
+    try {
+      const res = await fetch(`/api/membership/${selectedMembershipToPay}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) throw new Error("Failed to update membership");
+      
+      setSelectedMembership(selectedMembershipToPay);
+      refetch();
+      setShowWalletModal(false);
+      setSelectedMembershipToPay(null);
+      toast({
+        title: "Membership Updated!",
+        description: `You are now a ${membership?.name} member with +${membership?.bonus}% bonus. Payment of ${membership.price} WLD processed.`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update membership",
+      });
+    } finally {
+      setIsPayingMembership(false);
+    }
+  };
+
+  const handleDeposit = () => {
+    const amount = parseFloat(depositAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid amount",
+      });
+      return;
+    }
+
+    setIsDepositing(true);
+    setTimeout(() => {
+      setIsDepositing(false);
+      setShowDepositModal(false);
+      setDepositAmount("");
+      toast({
+        title: "Deposit Initiated",
+        description: `${amount} WLD deposit has been initiated. It will be reflected in your balance shortly.`,
+      });
+      refetch();
+    }, 1500);
+  };
+
+  const handleCopyAddress = () => {
+    navigator.clipboard.writeText(mockWalletAddress);
+    setWalletCopied(true);
+    setTimeout(() => setWalletCopied(false), 2000);
+    toast({
+      title: "Copied!",
+      description: "Wallet address copied to clipboard",
+    });
+  };
+
+  const handleStaking = () => {
+    const amount = parseFloat(stakingAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid amount",
+      });
+      return;
+    }
+
+    if (amount > mockWalletBalance) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Insufficient balance",
+      });
+      return;
+    }
+
+    setIsStaking(true);
+    setTimeout(() => {
+      const apyMap: { [key: string]: number } = {
+        "vip": 50,
+        "silver": 75,
+        "gold": 100,
+        "platinum": 150,
+      };
+
+      const durationNameMap: { [key: string]: string } = {
+        "vip": "VIP",
+        "silver": "Silver",
+        "gold": "Gold",
+        "platinum": "Platinum",
+      };
+      
+      const newStake = {
+        id: `stake-${Date.now()}`,
+        amount,
+        duration: 1, // 24 hours
+        startTime: new Date(),
+        apy: apyMap[stakingDuration] || 50,
+      };
+      
+      setActiveStakes([...activeStakes, newStake]);
+      setIsStaking(false);
+      setShowStakingModal(false);
+      setStakingAmount("");
+      toast({
+        title: "Staking Initiated",
+        description: `${amount} FORTEX staked for 24h with ${apyMap[stakingDuration] || 50}% APY (${durationNameMap[stakingDuration]} tier). You'll earn rewards!`,
+      });
+      refetch();
+    }, 1500);
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-24 text-foreground overflow-hidden relative">
+      {/* Ambient background effects */}
+      <div className="absolute top-0 left-0 w-full h-96 bg-primary/5 rounded-b-[4rem] blur-3xl -z-10" />
+      
+      <div className="px-6 pt-12">
+        {/* Header */}
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-3xl font-display font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500">
+              FORTEX
+            </h1>
+            <p className="text-muted-foreground text-sm">Welcome back, {user?.username || "Miner"}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-purple-600 p-[2px]">
+            <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-xs font-bold">
+              {(user?.username?.[0] || "U").toUpperCase()}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Balance Card */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="glass-panel rounded-3xl p-8 mb-8 relative overflow-hidden group"
+        >
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl group-hover:bg-primary/30 transition-all duration-500" />
+          
+          <div className="relative z-10">
+            <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total Balance</span>
+            <div className="flex items-baseline gap-2 mt-2">
+              <span className="text-5xl font-display font-bold text-white tracking-tight">
+                {user?.minedBalance || 0}
+              </span>
+              <span className="text-xl text-primary font-bold">FTX</span>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <Link href="/mine" className="flex-1">
+                <Button className="w-full bg-white text-black hover:bg-gray-200" data-testid="button-start-mining">Start Mining</Button>
+              </Link>
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => {
+                  setSelectedMembershipToPay(null);
+                  setShowWalletModal(true);
+                }}
+                data-testid="button-wallet"
+              >
+                <WalletIcon size={16} className="mr-2" />
+                Wallet
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Active Stakes Section */}
+        {getMembershipStake() && (
+          <div className="mb-8">
+            <h2 className="text-lg font-bold mb-4 text-white">Your Staking</h2>
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="glass-panel p-4 rounded-2xl border border-primary/30 hover:border-primary/50 transition-colors"
+              data-testid={`card-stake-membership`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lock size={16} className="text-primary" />
+                    <span className="font-bold text-white">{getMembershipStake()?.amount} FORTEX</span>
+                    <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">{getMembershipStake()?.apy}% APY</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {getMembershipStake() && getDaysRemaining(getMembershipStake())} days remaining
+                  </p>
+                  
+                  {/* Real-time Rewards */}
+                  <div className="bg-white/5 rounded-lg p-3 border border-white/10 mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground">Earned Rewards</span>
+                      <span className="text-sm font-bold text-emerald-400">
+                        +{getMembershipStake() && getStakeRewards(getMembershipStake()).toFixed(6)} FORTEX
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/10 rounded-full h-1 overflow-hidden">
+                      <div 
+                        className="bg-gradient-to-r from-primary to-emerald-400 h-full transition-all duration-1000"
+                        style={{
+                          width: `${getMembershipStake() ? Math.min(100, (((Date.now() - getMembershipStake().startTime.getTime()) / 1000) / (getMembershipStake().duration * 24 * 60 * 60)) * 100) : 0}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Withdraw Button */}
+                  <Button
+                    onClick={handleWithdrawStake}
+                    disabled={isWithdrawing}
+                    className="w-full"
+                    variant="outline"
+                    data-testid="button-withdraw-stake"
+                  >
+                    {isWithdrawing ? "Withdrawing..." : "Withdraw"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Staking Modal */}
+        {showStakingModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-xl font-bold">Stake FORTEX</h2>
+                <button 
+                  onClick={() => setShowStakingModal(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  data-testid="button-close-staking"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                {/* Current Staking */}
+                <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                  <p className="text-xs text-muted-foreground mb-1">Currently Staking</p>
+                  <p className="text-2xl font-bold text-white">{mockStakedAmount} FORTEX</p>
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Stake (FORTEX)</label>
+                  <input 
+                    type="number" 
+                    value={stakingAmount}
+                    onChange={(e) => setStakingAmount(e.target.value)}
+                    className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white placeholder-muted-foreground focus:outline-none focus:border-primary/50"
+                    placeholder="0"
+                    max={mockWalletBalance}
+                    data-testid="input-staking-amount"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Available: {mockWalletBalance} FORTEX</p>
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Lock Duration</label>
+                  <select 
+                    value={stakingDuration}
+                    onChange={(e) => setStakingDuration(e.target.value)}
+                    className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-primary/50"
+                    data-testid="select-staking-duration"
+                  >
+                    <option value="vip">24h VIP (50% APY)</option>
+                    <option value="silver">24h Silver (75% APY)</option>
+                    <option value="gold">24h Gold (100% APY)</option>
+                    <option value="platinum">24h Platinum (150% APY)</option>
+                  </select>
+                </div>
+
+                {/* Info */}
+                <div className="p-3 bg-primary/10 rounded-lg text-xs text-primary/80 border border-primary/20">
+                  <p>Lock for 24h to earn rewards. Your staking tier (VIP, Silver, Gold, Platinum) determines your APY!</p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowStakingModal(false)}
+                  data-testid="button-staking-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleStaking}
+                  disabled={isStaking || !stakingAmount.trim()}
+                  data-testid="button-confirm-staking"
+                >
+                  {isStaking ? "Processing..." : "Stake"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Wallet Modal */}
+        {showWalletModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-xl font-bold">{selectedMembershipToPay ? "Confirm Payment" : "Wallet"}</h2>
+                <button 
+                  onClick={() => {
+                    setShowWalletModal(false);
+                    setSelectedMembershipToPay(null);
+                    setWalletAmount("");
+                    setSendAddress("");
+                  }}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  data-testid="button-close-wallet"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                {selectedMembershipToPay && memberships.find(m => m.id === selectedMembershipToPay) ? (
+                  <>
+                    {/* Membership Payment Info */}
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <p className="text-xs text-muted-foreground mb-1">Membership Selected</p>
+                      <p className="text-lg font-bold text-white">{memberships.find(m => m.id === selectedMembershipToPay)?.name}</p>
+                    </div>
+
+                    {/* Payment Amount */}
+                    <div className="bg-primary/10 rounded-lg p-4 border border-primary/20">
+                      <p className="text-xs text-muted-foreground mb-1">Payment Amount</p>
+                      <p className="text-2xl font-bold text-white">{memberships.find(m => m.id === selectedMembershipToPay)?.price} WLD</p>
+                    </div>
+
+                    {/* Available Balance */}
+                    <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+                      <p className="text-xs text-muted-foreground mb-1">Your Balance</p>
+                      <p className="text-xl font-bold text-white">{mockWldBalance} WLD</p>
+                      {mockWldBalance < (memberships.find(m => m.id === selectedMembershipToPay)?.price || 0) && (
+                        <p className="text-xs text-red-400 mt-2">Insufficient balance. Buy more WLD.</p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Balance Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
+                        <p className="text-xs text-muted-foreground mb-1">WLD Balance</p>
+                        <p className="text-lg font-bold text-white">{mockWldBalance}</p>
+                      </div>
+                      <div className="bg-emerald-500/10 rounded-lg p-3 border border-emerald-500/20">
+                        <p className="text-xs text-muted-foreground mb-1">FORTEX Balance</p>
+                        <p className="text-lg font-bold text-white">{user?.minedBalance || 0}</p>
+                      </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+                      <button
+                        onClick={() => setWalletTab("buy")}
+                        className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          walletTab === "buy" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                        }`}
+                        data-testid="button-tab-buy"
+                      >
+                        <ArrowDownLeft size={14} />
+                        Buy
+                      </button>
+                      <button
+                        onClick={() => setWalletTab("sell")}
+                        className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          walletTab === "sell" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                        }`}
+                        data-testid="button-tab-sell"
+                      >
+                        <ArrowUpRight size={14} />
+                        Sell
+                      </button>
+                      <button
+                        onClick={() => setWalletTab("send")}
+                        className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          walletTab === "send" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
+                        }`}
+                        data-testid="button-tab-send"
+                      >
+                        <Send size={14} />
+                        Send
+                      </button>
+                    </div>
+
+                    {/* Currency Selection */}
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-2 block">Currency</label>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedCurrency("WLD")}
+                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${
+                            selectedCurrency === "WLD" 
+                              ? "bg-primary/20 border-primary text-white" 
+                              : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
+                          }`}
+                          data-testid="button-currency-wld"
+                        >
+                          WLD
+                        </button>
+                        <button
+                          onClick={() => setSelectedCurrency("FORTEX")}
+                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors border ${
+                            selectedCurrency === "FORTEX" 
+                              ? "bg-emerald-500/20 border-emerald-500 text-white" 
+                              : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
+                          }`}
+                          data-testid="button-currency-fortex"
+                        >
+                          FORTEX
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Amount Input */}
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-2 block">
+                        Amount to {walletTab === "buy" ? "Buy" : walletTab === "sell" ? "Sell" : "Send"}
+                      </label>
+                      <input 
+                        type="number" 
+                        value={walletAmount}
+                        onChange={(e) => setWalletAmount(e.target.value)}
+                        className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white placeholder-muted-foreground focus:outline-none focus:border-primary/50"
+                        placeholder="0"
+                        data-testid="input-wallet-amount"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Available: {selectedCurrency === "WLD" ? mockWldBalance : (user?.minedBalance || 0)} {selectedCurrency}
+                      </p>
+                    </div>
+
+                    {/* Send Address (only for send tab) */}
+                    {walletTab === "send" && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-2 block">Recipient Address</label>
+                        <input 
+                          type="text" 
+                          value={sendAddress}
+                          onChange={(e) => setSendAddress(e.target.value)}
+                          className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white placeholder-muted-foreground focus:outline-none focus:border-primary/50 font-mono text-xs"
+                          placeholder="0x..."
+                          data-testid="input-send-address"
+                        />
+                      </div>
+                    )}
+
+                    {/* Action Info */}
+                    <div className="p-3 bg-white/5 rounded-lg text-xs text-muted-foreground border border-white/10">
+                      {walletTab === "buy" && (
+                        <p>Buy {selectedCurrency} instantly with your preferred payment method.</p>
+                      )}
+                      {walletTab === "sell" && (
+                        <p>Sell your {selectedCurrency} and receive funds in your account.</p>
+                      )}
+                      {walletTab === "send" && (
+                        <p>Send {selectedCurrency} to any wallet address. Transaction fees may apply.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex gap-2">
+                <Button
+                  className="flex-1"
+                  variant="outline"
+                  onClick={() => {
+                    setShowWalletModal(false);
+                    setSelectedMembershipToPay(null);
+                    setWalletAmount("");
+                    setSendAddress("");
+                  }}
+                  data-testid="button-wallet-close"
+                >
+                  {selectedMembershipToPay ? "Cancel" : "Close"}
+                </Button>
+                {selectedMembershipToPay ? (
+                  <Button
+                    className="flex-1"
+                    onClick={handleConfirmMembershipPayment}
+                    disabled={isPayingMembership || mockWldBalance < (memberships.find(m => m.id === selectedMembershipToPay)?.price || 0)}
+                    data-testid="button-confirm-payment"
+                  >
+                    {isPayingMembership ? "Processing..." : "Confirm Payment"}
+                  </Button>
+                ) : (
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      const amount = parseFloat(walletAmount);
+                      if (isNaN(amount) || amount <= 0) {
+                        toast({
+                          variant: "destructive",
+                          title: "Error",
+                          description: "Please enter a valid amount",
+                        });
+                        return;
+                      }
+                      
+                      setIsProcessingWallet(true);
+                      setTimeout(() => {
+                        toast({
+                          title: `${walletTab === "buy" ? "Purchase" : walletTab === "sell" ? "Sale" : "Transfer"} Successful!`,
+                          description: `${amount} ${selectedCurrency} ${walletTab === "buy" ? "purchased" : walletTab === "sell" ? "sold" : "sent"} successfully.`,
+                        });
+                        setWalletAmount("");
+                        setSendAddress("");
+                        setIsProcessingWallet(false);
+                      }, 1500);
+                    }}
+                    disabled={isProcessingWallet || !walletAmount.trim() || (walletTab === "send" && !sendAddress.trim())}
+                    data-testid="button-wallet-action"
+                  >
+                    {isProcessingWallet ? "Processing..." : walletTab === "buy" ? "Buy" : walletTab === "sell" ? "Sell" : "Send"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Deposit Modal */}
+        {showDepositModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card rounded-2xl w-full max-w-sm border border-white/10 shadow-xl">
+              <div className="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 className="text-xl font-bold">Deposit WLD</h2>
+                <button 
+                  onClick={() => setShowDepositModal(false)}
+                  className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                  data-testid="button-close-deposit"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                {/* Amount */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Amount to Deposit (WLD)</label>
+                  <input 
+                    type="number" 
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="w-full bg-background border border-white/10 rounded-lg px-3 py-2 text-white placeholder-muted-foreground focus:outline-none focus:border-primary/50"
+                    placeholder="0"
+                    data-testid="input-deposit-amount"
+                  />
+                </div>
+
+                {/* Info */}
+                <div className="p-3 bg-primary/10 rounded-lg text-xs text-primary/80 border border-primary/20">
+                  <p>Deposits use your World Chain wallet. Funds will appear instantly after confirmation.</p>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowDepositModal(false)}
+                  data-testid="button-deposit-cancel"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleDeposit}
+                  disabled={isDepositing || !depositAmount.trim()}
+                  data-testid="button-confirm-deposit"
+                >
+                  {isDepositing ? "Processing..." : "Confirm"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Membership Section */}
+        <h2 className="text-lg mb-4 text-white mt-8">Choose Your Membership</h2>
+        <p className="text-sm text-muted-foreground mb-4">Boost your mining earnings with premium memberships</p>
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {memberships.map((membership) => {
+            const Icon = membership.icon;
+            const isSelected = selectedMembership === membership.id;
+            const currentMembership = memberships.find(m => m.id === selectedMembership);
+            const isLowerTier = currentMembership && membership.price < currentMembership.price;
+            const isDisabled = (isLowerTier || isUpdatingMembership || isSelected);
+            
+            return (
+              <motion.div
+                key={membership.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={!isDisabled ? { scale: 1.05 } : {}}
+              >
+                <Button
+                  onClick={() => handleMembershipUpdate(membership.id)}
+                  disabled={isDisabled}
+                  className={`w-full p-4 rounded-xl transition-all ${
+                    isSelected
+                      ? "ring-2 ring-primary"
+                      : ""
+                  } glass-panel bg-gradient-to-br ${membership.color} ${
+                    isDisabled ? "opacity-40 cursor-not-allowed" : "opacity-80 hover:opacity-100"
+                  }`}
+                  variant="ghost"
+                  data-testid={`button-membership-${membership.id}`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    {Icon && <Icon className="w-5 h-5" />}
+                    <h3 className="font-bold text-white text-sm">{membership.name}</h3>
+                    {membership.price > 0 && (
+                      <p className="text-xs text-white/70">{membership.price} WLD</p>
+                    )}
+                    <p className="text-xs text-white/80">+{membership.bonus}%</p>
+                    {isSelected && <p className="text-xs text-emerald-400">Owned</p>}
+                    {isLowerTier && <p className="text-xs text-red-400">Locked</p>}
+                  </div>
+                </Button>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Recent Activity / Games Teaser */}
+        <h2 className="text-lg mb-4 text-white">Quick Games</h2>
+        <div className="space-y-4">
+          <Link href="/games">
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="glass-panel p-4 rounded-2xl flex items-center gap-4 cursor-pointer"
+            >
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
+                <Gamepad2 size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base text-white">Play & Earn</h3>
+                <p className="text-xs text-muted-foreground">Double your earnings with mini-games</p>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                →
+              </div>
+            </motion.div>
+          </Link>
+        </div>
+      </div>
+
+      <BottomNav />
+    </div>
+  );
+}
+
+import { Gamepad2 } from "lucide-react";

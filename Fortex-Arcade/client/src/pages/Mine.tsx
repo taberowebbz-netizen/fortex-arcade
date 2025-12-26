@@ -1,0 +1,231 @@
+import { useState, useEffect } from "react";
+import React from "react";
+import { BottomNav } from "@/components/BottomNav";
+import { Button } from "@/components/ui/button";
+import { useClaimMining } from "@/hooks/use-mining";
+import { useUser } from "@/hooks/use-user";
+import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Hammer } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+export default function Mine() {
+  const { data: user } = useUser();
+  const { mutate: claim, isPending: isClaiming } = useClaimMining();
+  const [isMining, setIsMining] = useState(false);
+  const [canClaim, setCanClaim] = useState(false);
+  const [secondsUntilMine, setSecondsUntilMine] = useState<number | null>(null);
+  const [miningCountdown, setMiningCountdown] = useState<number | null>(null);
+  const { toast } = useToast();
+
+  const MINING_DURATION = 10; // 10 seconds for demo
+
+  // Check if user can mine based on nextMineTime
+  const canStartMining = !secondsUntilMine || secondsUntilMine <= 0;
+
+  const handleStartMining = () => {
+    setIsMining(true);
+    setCanClaim(false);
+    setMiningCountdown(MINING_DURATION);
+  };
+
+  const handleMiningComplete = () => {
+    setIsMining(false);
+    setCanClaim(true);
+    setMiningCountdown(null);
+    toast({
+      title: "Mining Complete!",
+      description: "Claim your tokens now.",
+    });
+  };
+
+  // Mining countdown timer
+  useEffect(() => {
+    if (!isMining || miningCountdown === null) return;
+    
+    if (miningCountdown <= 0) {
+      handleMiningComplete();
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setMiningCountdown(prev => prev !== null ? prev - 1 : null);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isMining, miningCountdown]);
+
+  const handleClaim = () => {
+    claim(50, { // Claim 50 tokens
+      onSuccess: (data) => {
+        setCanClaim(false);
+        // Set the next mine time from the server response
+        if (data.nextMineTime) {
+          const nextTime = new Date(data.nextMineTime);
+          const now = new Date();
+          const secondsLeft = Math.ceil((nextTime.getTime() - now.getTime()) / 1000);
+          setSecondsUntilMine(secondsLeft);
+        }
+        toast({
+          title: "Tokens Claimed!",
+          description: `You received 50 FTX. New balance: ${data.newBalance}. Next mining in 24 hours.`,
+        });
+      },
+      onError: (error: any) => {
+        // Check if error is due to cooldown
+        if (error.secondsUntilMine !== undefined) {
+          setSecondsUntilMine(error.secondsUntilMine);
+        }
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Could not claim tokens. Try again.",
+        });
+      }
+    });
+  };
+
+  // Initialize cooldown on user load
+  React.useEffect(() => {
+    if (user?.nextMineTime) {
+      const nextTime = new Date(user.nextMineTime);
+      const now = new Date();
+      const secondsLeft = Math.ceil((nextTime.getTime() - now.getTime()) / 1000);
+      if (secondsLeft > 0) {
+        setSecondsUntilMine(secondsLeft);
+      } else {
+        setSecondsUntilMine(null);
+      }
+    }
+  }, [user?.nextMineTime]);
+
+  return (
+    <div className="min-h-screen bg-background pb-24 relative overflow-hidden">
+      {/* Background elements */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-full max-w-lg h-96 bg-primary/10 blur-[100px] rounded-full pointer-events-none" />
+
+      <div className="px-6 pt-12 flex flex-col items-center min-h-[80vh]">
+        <h1 className="text-2xl mb-8">Cloud Mining Node</h1>
+
+        <div className="flex-1 flex flex-col items-center justify-center w-full">
+          <div className="relative w-72 h-72">
+            <img 
+              src="/images/fortex-coin.jpg" 
+              alt="FORTEX Mining Coin" 
+              className="w-full h-full object-cover rounded-full shadow-[0_0_40px_rgba(6,182,212,0.6)] border-4 border-primary/50"
+            />
+            {(isMining || (secondsUntilMine && secondsUntilMine > 0)) && (
+              <div className="absolute inset-0 rounded-full animate-spin" style={{ animationDuration: '3s' }}>
+                <div className="w-full h-full border-4 border-transparent border-t-primary border-r-primary rounded-full" />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-8 text-center">
+            {secondsUntilMine && secondsUntilMine > 0 && (
+              <div className="text-red-500 font-mono text-sm tracking-widest">
+                COOLDOWN: {Math.floor(secondsUntilMine / 3600)}h {Math.floor((secondsUntilMine % 3600) / 60)}m {(secondsUntilMine % 60).toString().padStart(2, '0')}s
+              </div>
+            )}
+            {isMining && miningCountdown !== null && (
+              <div className="text-primary font-mono text-sm tracking-widest animate-pulse">
+                MINING: {Math.floor(miningCountdown / 60)}:{(miningCountdown % 60).toString().padStart(2, '0')}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-12 w-full max-w-xs space-y-4">
+            <AnimatePresence mode="wait">
+              {!isMining && !canClaim && canStartMining && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="w-full"
+                >
+                  <Button 
+                    variant="neon" 
+                    size="lg" 
+                    className="w-full h-16 text-lg relative overflow-hidden group"
+                    onClick={handleStartMining}
+                  >
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Hammer className="w-5 h-5" /> Start Mining Sequence
+                    </span>
+                    <div className="absolute inset-0 bg-primary/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  </Button>
+                </motion.div>
+              )}
+
+              {!canStartMining && !isMining && !canClaim && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="w-full text-center"
+                >
+                  <p className="text-muted-foreground text-sm mb-4">
+                    Mining on cooldown. Come back in {secondsUntilMine} seconds
+                  </p>
+                  <Button disabled size="lg" className="w-full h-16 text-lg opacity-50">
+                    <Hammer className="w-5 h-5 mr-2" /> Cooldown Active
+                  </Button>
+                </motion.div>
+              )}
+
+              {isMining && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="text-center"
+                >
+                  <p className="text-primary animate-pulse font-mono tracking-widest">
+                    HASHING BLOCKS...
+                  </p>
+                </motion.div>
+              )}
+
+              {canClaim && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="w-full"
+                >
+                  <Button 
+                    variant="default" 
+                    size="lg" 
+                    className="w-full h-16 text-lg bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+                    onClick={handleClaim}
+                    disabled={isClaiming}
+                  >
+                    {isClaiming ? (
+                      "Claiming..."
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <CheckCircle2 className="w-6 h-6" /> Claim 50 FTX
+                      </span>
+                    )}
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Stats footer */}
+        <div className="w-full grid grid-cols-2 gap-4 mt-8">
+          <div className="glass-panel p-4 rounded-xl text-center">
+            <div className="text-xs text-muted-foreground uppercase">Rate</div>
+            <div className="text-xl font-display font-bold text-white">50 <span className="text-xs font-normal">FTX/cycle</span></div>
+          </div>
+          <div className="glass-panel p-4 rounded-xl text-center">
+            <div className="text-xs text-muted-foreground uppercase">Balance</div>
+            <div className="text-xl font-display font-bold text-primary">{user?.minedBalance || 0}</div>
+          </div>
+        </div>
+      </div>
+
+      <BottomNav />
+    </div>
+  );
+}
