@@ -42,7 +42,7 @@ export default function Login() {
           throw new Error(data.error || "Backend verification failed");
         }
       } else {
-        const res = await fetch("/api/verify", {
+        const res = await fetch("/api/auth/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ payload: null, action: "browser-test" }),

@@ -20,9 +20,8 @@ export function MiniKitProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      MiniKit.install({ 
-        appId: 'app_staging_fortex_mining_game' 
-      });
+      const appId = import.meta.env.VITE_WORLDCOIN_APP_ID || 'app_staging_fortex';
+      MiniKit.install(appId);
       setIsInstalled(MiniKit.isInstalled());
     } catch (err) {
       console.log('Running in browser mode - MiniKit not available');
