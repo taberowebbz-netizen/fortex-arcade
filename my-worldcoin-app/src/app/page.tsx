@@ -4,60 +4,44 @@ import { MiniKit } from "@worldcoin/minikit-js";
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [isMiniKitReady, setIsMiniKitReady] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // Inicialização do MiniKit (apenas a string do App ID)
-    if (typeof window !== "undefined" && MiniKit && !MiniKit.isInstalled()) {
-      MiniKit.install("app_222a6deb519ae275c079b71f4efdf84f"); // ← Teu App ID real
-      console.log("MiniKit inicializado com sucesso!");
-      setIsMiniKitReady(true);
-    } else if (MiniKit.isInstalled()) {
-      setIsMiniKitReady(true);
+    if (!MiniKit.isInstalled()) {
+      MiniKit.install("app_222a6deb519ae275c079b71f4efdf84f"); // teu App ID
     }
+    setReady(true);
   }, []);
 
-  const handleVerify = async () => {
-    if (!MiniKit.isInstalled()) {
-      alert("MiniKit não inicializado");
-      return;
-    }
-
+  const handleLogin = async () => {
     try {
-      const response = await MiniKit.commandsAsync.verify({
+      const result = await MiniKit.commandsAsync.verify({
         action: "login",
       });
 
-      if (response.finalPayload) {
-        alert("Verificação sucesso! Payload recebido.");
-        console.log("Payload:", response.finalPayload);
+      if (result.finalPayload) {
+        console.log("SUCCESS:", result.finalPayload);
+        alert("Login com World ID realizado com sucesso!");
       } else {
-        alert("Verificação cancelada");
+        alert("Login cancelado");
       }
     } catch (err) {
       console.error(err);
-      alert("Erro na verificação");
+      alert("Erro ao verificar World ID");
     }
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-purple-900 to-black text-white">
-      <h1 className="text-5xl font-bold mb-8">My Worldcoin Mini App</h1>
-      <p className="text-xl mb-12 text-center max-w-lg">
-        Clique no botão abaixo para verificar sua humanidade com World ID.
-      </p>
+    <main className="flex min-h-screen flex-col items-center justify-center bg-black text-white">
+      <h1 className="text-4xl font-bold mb-6">Fortex Arcade</h1>
 
       <button
-        onClick={handleVerify}
-        disabled={!isMiniKitReady}
-        className="rounded-full bg-green-600 px-10 py-5 text-2xl font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={handleLogin}
+        disabled={!ready}
+        className="rounded-lg bg-green-600 px-8 py-4 text-xl hover:bg-green-700 disabled:opacity-50"
       >
-        {isMiniKitReady ? "Connect World ID" : "Carregando MiniKit..."}
+        {ready ? "Login com World ID" : "Carregando..."}
       </button>
-
-      <p className="mt-8 text-sm opacity-70">
-        Powered by Worldcoin MiniKit + Next.js
-      </p>
     </main>
   );
 }
