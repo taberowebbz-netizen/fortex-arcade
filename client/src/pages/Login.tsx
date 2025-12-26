@@ -12,45 +12,56 @@ export default function Login() {
   const [isPending, setIsPending] = useState(false);
 
   const handleLogin = async () => {
-    if (!MiniKit.isInstalled()) {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "MiniKit not installed. Please open in World App.",
-      });
-      return;
-    }
-
     setIsPending(true);
 
     try {
-      const response = await MiniKit.commandsAsync.verify({
-        action: "login",
-      });
-
-      if (!response.finalPayload) {
-        throw new Error("Verification cancelled or failed");
-      }
-
-      const res = await fetch("/api/auth-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload: response.finalPayload }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        toast({
-          title: "Login successful!",
-          description: "Welcome to Fortex Arcade!",
+      if (MiniKit.isInstalled()) {
+        const response = await MiniKit.commandsAsync.verify({
+          action: "login",
         });
-        setLocation("/");
+
+        if (!response.finalPayload) {
+          throw new Error("Verification cancelled or failed");
+        }
+
+        const res = await fetch("/api/auth-verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payload: response.finalPayload }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          toast({
+            title: "Login successful!",
+            description: "Welcome to Fortex Arcade!",
+          });
+          setLocation("/");
+        } else {
+          throw new Error(data.error || "Backend verification failed");
+        }
       } else {
-        throw new Error(data.error || "Backend verification failed");
+        const res = await fetch("/api/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payload: null, action: "browser-test" }),
+        });
+
+        const data = await res.json();
+        
+        if (data.id) {
+          toast({
+            title: "Test Mode",
+            description: "Logged in for browser testing",
+          });
+          setLocation("/");
+        } else {
+          throw new Error("Login failed");
+        }
       }
     } catch (err: any) {
-      console.error("Worldcoin login error:", err);
+      console.error("Login error:", err);
       toast({
         variant: "destructive",
         title: "Login Failed",
