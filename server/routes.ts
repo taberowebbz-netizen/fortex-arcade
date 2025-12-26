@@ -39,6 +39,34 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth-verify", async (req: Request, res: Response) => {
+    try {
+      const { payload } = req.body;
+      
+      if (!payload || !payload.nullifier_hash) {
+        return res.status(400).json({ success: false, error: "Invalid payload" });
+      }
+      
+      const worldId = payload.nullifier_hash;
+      
+      let user = await storage.getUserByWorldId(worldId);
+      if (!user) {
+        user = await storage.createUser({ 
+          worldId,
+          username: "Miner_" + worldId.substring(0, 8)
+        });
+      }
+      
+      req.session.userId = user.id;
+      req.session.worldId = worldId;
+      
+      res.json({ success: true, user });
+    } catch (err) {
+      console.error("Auth verify error:", err);
+      res.status(400).json({ success: false, error: "Verification failed" });
+    }
+  });
+
   app.get("/api/me", async (req: Request, res: Response) => {
     if (!req.session.userId) {
       return res.status(401).json({ message: "Not authenticated" });
@@ -114,7 +142,7 @@ export async function registerRoutes(
       }
 
       const now = new Date();
-      const nextMineTime = new Date(userRecord.nextMineTime);
+      const nextMineTime = userRecord.nextMineTime ? new Date(userRecord.nextMineTime) : new Date(0);
       
       if (now < nextMineTime) {
         const secondsUntilMine = Math.ceil((nextMineTime.getTime() - now.getTime()) / 1000);
