@@ -9,14 +9,18 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    if (!MiniKit.isInstalled()) {
-      MiniKit.install("app_222a6deb519ae275c079b71f4efdf84f");
-      console.log("MiniKit instalado");
-    }
+    try {
+      if (!MiniKit.isInstalled()) {
+        MiniKit.install("app_222a6deb519ae275c079b71f4efdf84f");
+        console.log("MiniKit instalado");
+      }
 
-    if (MiniKit.isInstalled()) {
-      console.log("MiniKit pronto");
-      setIsReady(true);
+      if (MiniKit.isInstalled()) {
+        console.log("MiniKit pronto");
+        setIsReady(true);
+      }
+    } catch (err) {
+      console.error("Erro ao inicializar MiniKit:", err);
     }
   }, []);
 
@@ -34,6 +38,10 @@ export default function Home() {
       >
         {isReady ? "Connect World ID" : "Carregando MiniKit..."}
       </button>
+
+      <p className="mt-8 text-sm opacity-70">
+        Powered by Worldcoin MiniKit + Next.js
+      </p>
     </main>
   );
 }
