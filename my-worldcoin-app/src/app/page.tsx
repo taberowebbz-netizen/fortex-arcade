@@ -1,6 +1,6 @@
 "use client";
 
-import { MiniKit } from "@worldcoin/minikit-js";
+import { MiniKit, VerifyCommandInput, VerificationLevel, ISuccessResult } from "@worldcoin/minikit-js";
 import { useEffect, useState } from "react";
 
 export default function Home() {
@@ -25,23 +25,48 @@ export default function Home() {
     }
   }, []);
 
-  // Função de login com World ID
-  const handleLogin = async () => {
+  // Payload de verificação
+  const verifyPayload: VerifyCommandInput = {
+    action: "login",             // mesma action do Developer Portal
+    signal: "user-unique-id",    // opcional, identifica o usuário
+    verification_level: VerificationLevel.Orb, // Orb ou Device
+  };
+
+  // Função de login/verify com MiniKit
+  const handleVerify = async () => {
     if (!MiniKit.isInstalled()) {
       alert("MiniKit não inicializado");
       return;
     }
 
     try {
-      const response = await MiniKit.commandsAsync.verify({
-        action: "login", // mesma action do backend e Developer Portal
+      const { finalPayload } = await MiniKit.commandsAsync.verify(verifyPayload);
+
+      if (!finalPayload || finalPayload.status === "error") {
+        console.log("Verificação cancelada ou falhou", finalPayload);
+        alert("Verificação cancelada ou falhou");
+        return;
+      }
+
+      // Envia para backend para validação
+      const response = await fetch("/api/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          payload: finalPayload as ISuccessResult,
+          action: verifyPayload.action,
+          signal: verifyPayload.signal,
+        }),
       });
 
-      if (response.finalPayload) {
-        console.log("SUCCESS:", response.finalPayload);
+      const result = await response.json();
+
+      if (result.status === 200) {
+        console.log("Verification success!");
         alert("Login com World ID realizado com sucesso!");
       } else {
-        alert("Verificação cancelada");
+        console.log("Verification failed:", result);
+        alert("Falha na verificação");
       }
     } catch (err) {
       console.error("Erro na verificação:", err);
@@ -58,7 +83,7 @@ export default function Home() {
       </p>
 
       <button
-        onClick={handleLogin}
+        onClick={handleVerify}
         disabled={!isReady}
         className="rounded-full bg-green-600 px-10 py-5 text-2xl font-semibold hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
       >
