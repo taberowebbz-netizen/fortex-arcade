@@ -10,29 +10,32 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    try {
-      if (!MiniKit.isInstalled()) {
-        MiniKit.install("app_222a6deb519ae275c079b71f4efdf84f"); // ← Teu App ID real
-        console.log("MiniKit instalado");
-      }
+    const initMiniKit = async () => {
+      try {
+        if (!MiniKit.isInstalled()) {
+          MiniKit.install("app_222a6deb519ae275c079b71f4efdf84f"); // ← Teu App ID real
+          console.log("MiniKit instalado");
+        }
 
-      if (MiniKit.isInstalled()) {
-        console.log("MiniKit pronto");
-        setIsReady(true);
+        if (MiniKit.isInstalled()) {
+          console.log("MiniKit pronto");
+          setIsReady(true);
+        }
+      } catch (err) {
+        console.error("Erro ao inicializar MiniKit:", err);
       }
-    } catch (err) {
-      console.error("Erro ao inicializar MiniKit:", err);
-    }
+    };
+
+    initMiniKit();
   }, []);
 
-  // Payload de verificação
   const verifyPayload: VerifyCommandInput = {
-    action: "login",             // mesma action do Developer Portal
-    signal: "user-unique-id",    // opcional, identifica o usuário
-    verification_level: VerificationLevel.Orb, // Orb ou Device
+    action: "login",
+    signal: "user-unique-id",
+    verification_level: VerificationLevel.Orb,
   };
 
-  // Função de login/verify com MiniKit
+  // Função de login/verify
   const handleVerify = async () => {
     if (!MiniKit.isInstalled()) {
       alert("MiniKit não inicializado");
@@ -48,7 +51,7 @@ export default function Home() {
         return;
       }
 
-      // Envia para backend para validação
+      // Envia para backend
       const response = await fetch("/api/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -62,10 +65,10 @@ export default function Home() {
       const result = await response.json();
 
       if (result.status === 200) {
-        console.log("Verification success!");
+        console.log("Payload recebido com sucesso!");
         alert("Login com World ID realizado com sucesso!");
       } else {
-        console.log("Verification failed:", result);
+        console.log("Falha na verificação:", result);
         alert("Falha na verificação");
       }
     } catch (err) {
